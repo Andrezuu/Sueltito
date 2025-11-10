@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 // Core
 import 'package:sueltito/core/config/app_theme.dart';
@@ -28,6 +29,17 @@ class MainApp extends StatelessWidget {
       title: 'Sueltito',
       theme: getAppTheme(),
       home: const SplashPage(),
+      locale: const Locale('es', 'BO'),
+      supportedLocales: const [
+        Locale('es', 'BO'),
+        Locale('es'),
+        Locale('en'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       routes: {
         '/welcome': (context) => const WelcomePage(),
         '/sign_up': (context) => const SignUpPage(),

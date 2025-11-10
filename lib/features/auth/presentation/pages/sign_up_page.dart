@@ -2,8 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:sueltito/core/config/app_theme.dart';
 import 'package:sueltito/core/widgets/sueltito_text_field.dart';
 
-class SignUpPage extends StatelessWidget {
+class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
+
+  @override
+  State<SignUpPage> createState() => _SignUpPageState();
+}
+
+class _SignUpPageState extends State<SignUpPage> {
+  final TextEditingController _fechaNacimientoController = TextEditingController();
+  DateTime? _selectedDate;
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      locale: const Locale('es'),
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), // 18 años atrás
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _fechaNacimientoController.text = "${picked.day}/${picked.month}/${picked.year}";
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _fechaNacimientoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +97,12 @@ class SignUpPage extends StatelessWidget {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: const SueltitoTextField(
+                              child: SueltitoTextField(
                                 hintText: 'Fecha de Nacimiento',
-                                keyboardType: TextInputType.datetime,
+                                controller: _fechaNacimientoController,
+                                readOnly: true,
+                                onTap: () => _selectDate(context),
+                                suffixIcon: const Icon(Icons.calendar_today),
                               ),
                             ),
                           ],
@@ -110,7 +143,6 @@ class SignUpPage extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {
-                      // Navegar a la página de inicio de sesión
                       Navigator.pushNamed(context, '/passenger_home');
                     },
                     style: TextButton.styleFrom(
