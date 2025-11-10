@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'package:sueltito/core/config/app_theme.dart';
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Configuración',
+          style: TextStyle(
+            color: AppColors.primaryGreen,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            // Icono de QR
+            icon: Icon(Icons.qr_code, color: AppColors.primaryGreen),
+            onPressed: () {},
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              Text(
+                'General',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    _buildSettingsRow(
+                      context,
+                      title: 'Idioma',
+                      trailing: 'Español',
+                      onTap: () {},
+                    ),
+                    const Divider(height: 1, indent: 16),
+                    _buildSettingsRow(
+                      context,
+                      title: 'Mi Perfil',
+                      onTap: () {},
+                    ),
+                    const Divider(height: 1, indent: 16),
+                    _buildSettingsRow(
+                      context,
+                      title: 'Contactanos',
+                      onTap: () {},
+                      hideArrow: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: _buildSettingsRow(
+                  context,
+                  title: 'Cambiar a Conductor',
+                  onTap: () => _showSwitchRoleDialog(context),
+                  icon: Icons.swap_horiz_rounded,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSwitchRoleDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmación'),
+          content: const Text(
+            '¿Seguro que quieres cambiar al perfil de Conductor?',
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: AppColors.textWhite,
+              ),
+              child: const Text('Confirmar'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                // Si éxito:
+                //   Navigator.pushAndRemoveUntil(context, '/driver_home', (route) => false);
+                // Si error:
+                //   ScaffoldMessenger.of(context).showSnackBar(...)
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSettingsRow(
+    BuildContext context, {
+    required String title,
+    String trailing = '',
+    required VoidCallback onTap,
+    bool hideArrow = false,
+    IconData? icon,
+  }) {
+    return ListTile(
+      leading: (icon != null)
+          ? Icon(icon, color: AppColors.primaryGreen)
+          : null,
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w600)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (trailing.isNotEmpty)
+            Text(trailing, style: TextStyle(color: Colors.grey[600])),
+          if (!hideArrow) const SizedBox(width: 8),
+          if (!hideArrow)
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
