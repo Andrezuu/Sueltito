@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.nfc.NFC" />
+    <uses-permission android:name="android.permission.NFC" />  
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <application
         android:label="sueltito"
         android:name="${applicationName}"
@@ -23,6 +26,11 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.nfc.category.DEFAULT" />
+                <data android:mimeType="application/vnd.sueltito" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

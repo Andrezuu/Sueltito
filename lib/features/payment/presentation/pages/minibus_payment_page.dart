@@ -16,6 +16,11 @@ class MinibusPaymentPage extends StatefulWidget {
 }
 
 class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
+  // --- NUEVO ---
+  // Variable para guardar los datos del conductor que recibimos de la ruta
+  Map<String, dynamic>? _conductorData;
+  // --- FIN NUEVO ---
+
   bool _isPreferencial = false;
   final List<Pasaje> _pasajesSeleccionados = [];
   static const double _precioCorto = 2.40;
@@ -30,6 +35,35 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
       _isPreferencial ? _precioLargoPref : _precioLargo;
   double get totalAPagar =>
       _pasajesSeleccionados.fold(0.0, (sum, item) => sum + item.precio);
+
+  // --- NUEVO ---
+  // Usamos didChangeDependencies para leer los argumentos de la ruta
+  // de forma segura. Se llama una vez cuando el widget se construye.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Solo cargamos los datos la primera vez
+    if (_conductorData == null) {
+      // 1. Obtenemos los argumentos enviados desde main.dart
+      final args = ModalRoute.of(context)?.settings.arguments;
+
+      // 2. Verificamos que no sean nulos y sean del tipo que esperamos
+      if (args != null && args is Map<String, dynamic>) {
+        // 3. Guardamos los datos en el estado
+        setState(() {
+          _conductorData = args;
+        });
+      } else {
+        // 4. Manejo de error (si se abre la página sin datos)
+        print("Error: MinibusPaymentPage se abrió sin datos del conductor.");
+        // Opcionalmente, podrías cerrar la página:
+        // Navigator.of(context).pop();
+      }
+    }
+  }
+  // --- FIN NUEVO ---
+
 
   // --- LÓGICA DE ACCIONES ---
   void _addPasaje(String nombre, double precio) {
@@ -46,6 +80,19 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    // --- NUEVO ---
+    // Si los datos del conductor aún no se han cargado desde los argumentos
+    // (lo cual puede tardar un frame), mostramos un indicador de carga.
+    if (_conductorData == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    // --- FIN NUEVO ---
+
+    // Una vez que _conductorData tiene datos, construimos la UI normal.
     return Scaffold(
       appBar: _buildAppBar(context),
       body: Column(
@@ -58,7 +105,10 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildDriverInfoCard(),
+                  // --- MODIFICADO ---
+                  // Pasamos los datos del conductor al widget que los muestra
+                  _buildDriverInfoCard(_conductorData!),
+                  // --- FIN MODIFICADO ---
                   const SizedBox(height: 24),
                   _buildFareSelection(context),
                   const SizedBox(height: 24),
@@ -78,6 +128,8 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
+    // (Esta parte queda igual, "Fabricio" parece ser el nombre del pasajero,
+    // así que no lo tocamos)
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -90,14 +142,24 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
         'Bienvenido al Minibus\nFabricio',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: AppColors.primaryGreen,
-          fontWeight: FontWeight.bold,
-        ),
+              color: AppColors.primaryGreen,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
 
-  Widget _buildDriverInfoCard() {
+  // --- MODIFICADO ---
+  // Ahora esta función recibe el Mapa con los datos del conductor
+  Widget _buildDriverInfoCard(Map<String, dynamic> driverData) {
+    // --- NUEVO ---
+    // Extraemos los datos del JSON usando las claves que definiste.
+    // Usamos '??' para poner un texto por defecto si la clave no existiera.
+    final propietario = driverData['propietario'] as Map<String, dynamic>? ?? {};
+    final String celular = propietario['celular'] as String? ?? 'Celular no disponible';
+    final String nombre = propietario['nombre'] as String? ?? 'Conductor no encontrado';
+    // --- FIN NUEVO ---
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -111,11 +173,13 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'CEL: 6818794',
+                // --- MODIFICADO ---
+                'CEL: $celular',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Text(
-                'Roberto Vasquez Perez',
+                // --- MODIFICADO ---
+                nombre,
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
             ],
@@ -130,6 +194,11 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
     );
   }
 
+  // ... (El resto del archivo, _buildFareSelection, _buildPayButton, _buildSummaryCard, etc.
+  // ...  permanece exactamente igual, ya que no dependen de los datos del conductor)
+  // ...
+  // [CÓDIGO RESTANTE SIN CAMBIOS]
+  // ...
   Widget _buildFareSelection(BuildContext context) {
     return Column(
       children: [
