@@ -10,7 +10,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthRefreshNotifier(ref);
   
   return GoRouter(
-    initialLocation: AppPaths.welcome,
+    initialLocation: AppPaths.splash,
     debugLogDiagnostics: false,
     refreshListenable: notifier,
     // ✅ Generar rutas automáticamente desde RoutePermissions
