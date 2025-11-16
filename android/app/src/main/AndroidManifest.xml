@@ -1,7 +1,10 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.nfc.NFC" />
     <uses-permission android:name="android.permission.NFC" />  
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-sdk tools:overrideLibrary="com.baseflow.permissionhandler"/>
     <application
         android:label="sueltito"
         android:name="${applicationName}"

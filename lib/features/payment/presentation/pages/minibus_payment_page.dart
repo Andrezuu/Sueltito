@@ -149,50 +149,57 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
     );
   }
 
-  // --- MODIFICADO ---
-  // Ahora esta función recibe el Mapa con los datos del conductor
-  Widget _buildDriverInfoCard(Map<String, dynamic> driverData) {
-    // --- NUEVO ---
-    // Extraemos los datos del JSON usando las claves que definiste.
-    // Usamos '??' para poner un texto por defecto si la clave no existiera.
-    final propietario = driverData['propietario'] as Map<String, dynamic>? ?? {};
-    final String celular = propietario['celular'] as String? ?? 'Celular no disponible';
-    final String nombre = propietario['nombre'] as String? ?? 'Conductor no encontrado';
-    // --- FIN NUEVO ---
+Widget _buildDriverInfoCard(Map<String, dynamic> driverData) {
+  // --- NUEVO: Extraemos ambos bloques (propietario y servicio) ---
+  final propietario = driverData['propietario'] as Map<String, dynamic>? ?? {};
+  final servicio = driverData['servicio'] as Map<String, dynamic>? ?? {};
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F0),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                // --- MODIFICADO ---
-                'CEL: $celular',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              Text(
-                // --- MODIFICADO ---
-                nombre,
-                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-              ),
-            ],
-          ),
-          const Icon(
-            Icons.directions_bus,
-            size: 40,
-            color: AppColors.textBlack,
-          ),
-        ],
-      ),
-    );
-  }
+  // --- NUEVO: Leemos los datos específicos del nuevo JSON ---
+  // (Usamos '??' para poner un texto por defecto si la clave no existiera)
+  final String nombre = propietario['nombre'] as String? ?? 'Conductor no encontrado';
+  final String placa = servicio['identificador'] as String? ?? 'S/N';
+  final String nombreRuta = servicio['nombre'] as String? ?? 'Ruta desconocida';
+  // --- FIN NUEVO ---
+
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF0F0F0),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              // --- MODIFICADO: Mostramos la PLACA ---
+              'Placa: $placa',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), // Más grande
+            ),
+            const SizedBox(height: 6), // Espacio
+            Text(
+              // --- MODIFICADO: Mostramos el NOMBRE ---
+              nombre,
+              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+            ),
+            Text(
+              // --- NUEVO: Mostramos la RUTA ---
+              nombreRuta,
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+          ],
+        ),
+        const Icon(
+          Icons.directions_bus,
+          size: 40,
+          color: AppColors.textBlack,
+        ),
+      ],
+    ),
+  );
+}
 
   // ... (El resto del archivo, _buildFareSelection, _buildPayButton, _buildSummaryCard, etc.
   // ...  permanece exactamente igual, ya que no dependen de los datos del conductor)
