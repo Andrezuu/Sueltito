@@ -12,7 +12,7 @@ import 'package:sueltito/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:sueltito/features/main_navigation/presentation/pages/main_navigation_page.dart';
 
 // Feature: Payment
-import 'package:sueltito/features/payment/presentation/pages/minibus_payment_page.dart';
+import 'package:sueltito/features/payment/presentation/pages/trufis_payment_page.dart';
 import 'package:sueltito/features/payment/presentation/pages/nfc_scan_page.dart';
 
 void main() async {
@@ -34,7 +34,7 @@ class MainApp extends StatelessWidget {
         '/welcome': (context) => const WelcomePage(),
         '/sign_up': (context) => const SignUpPage(),
         '/passenger_home': (context) => const MainNavigationPage(),
-        '/minibus_payment': (context) => const MinibusPaymentPage(),
+        '/minibus_payment': (context) => const TrufisPaymentPage(),
         '/nfc_scan': (context) => const NfcScanPage(),
       },
     );
