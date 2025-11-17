@@ -1,11 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sueltito/core/config/app_theme.dart';
+import 'package:sueltito/core/widgets/app_bottom_navigation.dart';
+import 'package:sueltito/core/navigation/constants/navigation_config.dart';
+import 'package:sueltito/core/navigation/presentation/providers/navigation_provider.dart';
+import 'package:sueltito/features/auth/presentation/providers/auth_provider.dart';
 
-class DriverHomePage extends StatelessWidget {
+class DriverHomePage extends ConsumerWidget {
   const DriverHomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIndex = ref.watch(navigationIndexProvider);
+    final navigationItems = NavigationConfig.getDriverItems();
+
+    return Scaffold(
+      body: IndexedStack(
+        index: selectedIndex,
+        children: navigationItems.map((item) => item.page).toList(),
+      ),
+      bottomNavigationBar: AppBottomNavigation(
+        currentIndex: selectedIndex,
+        onTap: (index) => ref.read(navigationIndexProvider.notifier).state = index,
+        items: navigationItems,
+      ),
+    );
+  }
+}
+
+class DriverHomeContent extends ConsumerWidget {
+  const DriverHomeContent({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final auth = ref.watch(authProvider);
+    final usuario = auth.value?.usuario;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundGreen,
       body: SafeArea(
@@ -24,18 +55,11 @@ class DriverHomePage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Bienvenido -',
+                            'Bienvenido ${usuario?.nombre ?? 'Usuario'}',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primaryGreen,
-                            ),
-                          ),
-                          const Text(
-                            'Fabricio',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppColors.backgroundGreen,
                             ),
                           ),
                         ],
@@ -56,13 +80,14 @@ class DriverHomePage extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.directions_bus, color: Colors.white, size: 32),
+                        const Icon(Icons.directions_bus,
+                            color: Colors.white, size: 32),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
-                              'CEL: 68118974',
+                              'CEL: ${usuario?.celular ?? 'N/A'}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -70,7 +95,7 @@ class DriverHomePage extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Roberto Vasquez Perez',
+                              '${usuario?.nombreCompleto ?? 'N/A'}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -137,25 +162,18 @@ class DriverHomePage extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
-
-            // Últimos cobros
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Mis últimos cobros',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: textTheme.titleLarge?.copyWith(
+                            color: AppColors.primaryGreen,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -175,12 +193,39 @@ class DriverHomePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Expanded(
-                      child: ListView(
-                        children: [
-                          _buildCobroItem('Tramo Corto', '2 personas', 'Bs 4.80'),
-                          _buildCobroItem('Tramo Largo', '1 persona', 'Bs 3.00'),
-                          _buildCobroItem('Tramo Preferencia', '1 persona', 'Bs 2.00'),
-                        ],
+                      child: Card(
+                        color: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            children: [
+                              _buildHistoryItem(
+                                context,
+                                'Tramo Corto',
+                                '2 personas',
+                                'Bs 4.80',
+                              ),
+                              const Divider(height: 32),
+                              _buildHistoryItem(
+                                context,
+                                'Tramo Largo',
+                                '1 persona',
+                                'Bs 3.00',
+                              ),
+                              const Divider(height: 32),
+                              _buildHistoryItem(
+                                context,
+                                'Tramo Preferencia',
+                                '1 persona',
+                                'Bs 2.00',
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -190,98 +235,59 @@ class DriverHomePage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        selectedItemColor: AppColors.primaryGreen,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'Historial',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu),
-            label: 'Mas',
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildCobroItem(String titulo, String personas, String monto) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(8),
+  Widget _buildHistoryItem(
+    BuildContext context,
+    String title,
+    String subtitle,
+    String amount,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textBlack,
+              ),
             ),
-            child: const Icon(Icons.receipt, color: Colors.grey),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  titulo,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  personas,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+            Text(
+              subtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                monto,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+          ],
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              amount,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textBlack,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {},
+              child: Text(
+                'ver recibo',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.primaryYellow,
+                  decoration: TextDecoration.underline,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange[100],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Sueltito',
-                  style: TextStyle(
-                    color: Colors.orange[800],
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
