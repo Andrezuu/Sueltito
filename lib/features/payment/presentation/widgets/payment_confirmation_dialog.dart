@@ -128,7 +128,7 @@ class PaymentConfirmationDialog extends StatelessWidget {
                 // Botón Cancelar
                 Expanded(
                   child: ElevatedButton(
-                      onPressed: () => context.pop(), // Cierra el diálogo
+                      onPressed: () => context.pop(), 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey[600],
                       foregroundColor: Colors.white,

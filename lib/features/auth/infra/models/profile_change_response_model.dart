@@ -9,7 +9,6 @@ class ProfileChangeResponseModel extends ProfileChangeResponse {
   });
 
   factory ProfileChangeResponseModel.fromJson(Map<String, dynamic> json) {
-    // El backend devuelve un array de perfiles, tomamos el primero
     final perfilList = json['perfil'] as List<dynamic>?;
     final perfilJson = perfilList != null && perfilList.isNotEmpty
         ? perfilList.first as Map<String, dynamic>

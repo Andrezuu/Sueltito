@@ -32,7 +32,7 @@ class AuthRepositoryImpl implements AuthRepository {
     final requestModel = RegisterRequestModel.fromEntity(request);
     final responseModel = await remoteDataSource.register(requestModel);
 
-    // Guardar usuario localmente (sin token por ahora)
+    // TODO: token handling
     await localDataSource.saveUser(responseModel.usuario as UserModel);
 
     return responseModel.toEntity();
@@ -52,7 +52,6 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<ProfileChangeResponse> changeProfile(String userId, String newProfile) async {
     final responseModel = await remoteDataSource.changeProfile(userId, newProfile);
 
-    // Actualizar el perfil del usuario localmente
     final userModel = await localDataSource.getUser();
     if (userModel != null) {
       final updatedUser = userModel.copyWith(

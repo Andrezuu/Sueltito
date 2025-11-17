@@ -11,6 +11,7 @@ import '../../infra/datasources/auth_remote_ds.dart';
 import '../../infra/repositories/auth_repository_impl.dart';
 
 
+// TODO: Validate local user on build
 class AuthNotifier extends AsyncNotifier<AuthResponse?> {
   late final LoginUseCase _loginUseCase;
   late final RegisterUseCase _registerUseCase;
@@ -22,22 +23,18 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     final apiClient = ApiClient();
     final secureStorage = FlutterSecureStorage();
 
-    // Crear DataSources
     final localDataSource = AuthLocalDataSource(secureStorage: secureStorage);
     final remoteDataSource = AuthRemoteDataSourceImpl(apiClient: apiClient);
 
-    // Crear Repository
     _repository = AuthRepositoryImpl(
       remoteDataSource: remoteDataSource,
       localDataSource: localDataSource,
     );
 
-    // Crear Use Cases
     _loginUseCase = LoginUseCase(_repository);
     _registerUseCase = RegisterUseCase(_repository);
     _changeProfileUseCase = ChangeProfileUseCase(_repository);
 
-    // Cargar usuario si está autenticado
     final isAuth = await _repository.isAuthenticated();
     if (isAuth) {
       final currentUser = await _repository.getCurrentUser();
@@ -89,11 +86,9 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         newProfile: newProfile,
       );
       
-      // Obtener el usuario actualizado desde el repositorio
       final updatedUser = await _repository.getCurrentUser();
       
       if (updatedUser != null) {
-        // Actualizar el estado con el usuario que tiene el nuevo perfil
         state = AsyncData(
           AuthResponse(
             continuarFlujo: response.continuarFlujo,

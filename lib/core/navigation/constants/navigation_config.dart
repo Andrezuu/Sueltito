@@ -36,7 +36,7 @@ class NavigationConfig {
       const BottomNavigationItem(
         icon: Icons.home,
         label: 'Home',
-        page: DriverHomeContent(), // El contenido sin scaffold
+        page: DriverHomeContent(), 
       ),
       const BottomNavigationItem(
         icon: Icons.menu,

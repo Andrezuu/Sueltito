@@ -29,19 +29,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final textTheme = Theme.of(context).textTheme;
     final authState = ref.watch(authProvider);
 
-  // Escuchar cambios en el estado
-  final notificationService = ref.read(notificationServiceProvider);
-  ref.listen<AsyncValue<AuthResponse?>>(authProvider, (previous, next) {
+    final notificationService = ref.read(notificationServiceProvider);
+    ref.listen<AsyncValue<AuthResponse?>>(authProvider, (previous, next) {
       next.when(
         data: (response) {
           if (response != null) {
             notificationService.showSuccess('Login exitoso');
-            // ✅ Una sola línea, escalable
             context.go(response.usuario.getDefaultRoute());
           }
         },
         error: (error, stack) {
-          notificationService.showError(error.toString().replaceAll('Exception: ', ''));
+          notificationService.showError(
+            error.toString().replaceAll('Exception: ', ''),
+          );
         },
         loading: () {},
       );
@@ -53,7 +53,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textBlack),
-            onPressed: () => context.pop(),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
@@ -105,7 +105,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         if (celular.isNotEmpty) {
                           ref.read(authProvider.notifier).login(celular);
                         } else {
-                          ref.read(notificationServiceProvider).showWarning('Ingresa tu número de celular');
+                          ref
+                              .read(notificationServiceProvider)
+                              .showWarning('Ingresa tu número de celular');
                         }
                       },
                 style: ElevatedButton.styleFrom(
@@ -136,7 +138,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: authState.isLoading
                         ? null
                         : () {
-                              context.push(AppPaths.signUp);
+                            context.push(AppPaths.signUp);
                           },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,

@@ -21,7 +21,6 @@ class SettingsPage extends ConsumerWidget {
         ? Roles.chofer
         : Roles.oppositeOf(currentProfile);
 
-    // Escuchar cuando el logout sea exitoso
     ref.listen<AsyncValue<AuthResponse?>>(authProvider, (previous, next) {
       next.whenData((response) {
         if (response == null) {
@@ -181,9 +180,9 @@ class SettingsPage extends ConsumerWidget {
     final currentUser = authState.value?.usuario;
 
     if (currentUser == null) {
-      ref.read(notificationServiceProvider).showError(
-        'Error: Usuario no encontrado',
-      );
+      ref
+          .read(notificationServiceProvider)
+          .showError('Error: Usuario no encontrado');
       return;
     }
 
@@ -213,7 +212,9 @@ class SettingsPage extends ConsumerWidget {
                         Expanded(child: Text('Cambiando perfil...')),
                       ],
                     )
-                  : Text('¿Seguro que quieres cambiar al perfil de $humanTarget?'),
+                  : Text(
+                      '¿Seguro que quieres cambiar al perfil de $humanTarget?',
+                    ),
               actions: [
                 TextButton(
                   child: const Text('Cancelar'),
@@ -227,26 +228,29 @@ class SettingsPage extends ConsumerWidget {
                   onPressed: isLoading
                       ? null
                       : () async {
-                          // We read the notifier through dialogRef. This avoids using
-                          // the outer `ref` in an async callback after widget disposal.
-                          final notificationService =
-                              dialogRef.read(notificationServiceProvider);
+                          final notificationService = dialogRef.read(
+                            notificationServiceProvider,
+                          );
 
                           try {
                             await dialogRef
                                 .read(authProvider.notifier)
                                 .changeProfile(currentUser.id, targetProfile);
 
-                            // Close the dialog when finished successfully
                             dialogContext.pop();
 
                             if (context.mounted) {
-                              dialogRef.read(navigationIndexProvider.notifier).state = 1;
+                              dialogRef
+                                      .read(navigationIndexProvider.notifier)
+                                      .state =
+                                  1;
 
-                              final updatedAuth = dialogRef.read(authProvider).value;
+                              final updatedAuth = dialogRef
+                                  .read(authProvider)
+                                  .value;
                               if (updatedAuth != null) {
-                                final defaultRoute =
-                                    updatedAuth.usuario.getDefaultRoute();
+                                final defaultRoute = updatedAuth.usuario
+                                    .getDefaultRoute();
                                 context.go(defaultRoute);
 
                                 notificationService.showSuccess(
@@ -256,12 +260,9 @@ class SettingsPage extends ConsumerWidget {
                               }
                             }
                           } catch (e) {
-                            // The provider will be in error state; show the
-                            // notification and keep the dialog closed.
                             notificationService.showError(
                               'Error al cambiar perfil: ${e.toString()}',
                             );
-                            // Close the dialog even on error so user can retry
                             dialogContext.pop();
                           }
                         },
@@ -272,7 +273,8 @@ class SettingsPage extends ConsumerWidget {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white),
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text('Confirmar'),
