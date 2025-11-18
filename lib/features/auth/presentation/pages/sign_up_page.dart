@@ -26,7 +26,7 @@ class _SignUpPageState extends State<SignUpPage> {
   // --- Variable para el Dropdown ---
   String? _selectedExpedido;
   final List<String> _departamentos = [
-    'LP', 'SC', 'CB', 'CH', 'OR', 'PT', 'TJ', 'BN', 'PA'
+    'LP', 'SC', 'CB', 'CH', 'OR', 'PT', 'TJ', 'BN', 'PA', 'SIN EXTENCION'
   ];
   
   // PIN controllers
@@ -135,9 +135,11 @@ class _SignUpPageState extends State<SignUpPage> {
 
                       // --- ARREGLADO: Expedido (como Dropdown/ComboBox) ---
                       DropdownButtonFormField<String>(
-                        value: _selectedExpedido,
+                        initialValue: _selectedExpedido,
                         hint: const Text('Expedido en...'),
                         decoration: InputDecoration(
+                          filled: true,              // 1. Activar el relleno
+                          fillColor: Colors.white,   // 2. Color blanco
                           counterText: "",
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -264,7 +266,11 @@ class _SignUpPageState extends State<SignUpPage> {
               // Botón continuar
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/nfc_scan');
+                  Navigator.pushNamedAndRemoveUntil(
+      context, 
+      '/passenger_home', // Esta ruta carga MainNavigationPage
+      (route) => false   // Esto borra todas las pantallas anteriores (Login/Registro)
+    );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGreen,

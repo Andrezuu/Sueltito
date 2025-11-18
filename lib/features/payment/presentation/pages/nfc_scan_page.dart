@@ -15,15 +15,12 @@ class NfcScanPage extends StatefulWidget {
 class _NfcScanPageState extends State<NfcScanPage>
     with SingleTickerProviderStateMixin {
   
-  // --- 1. ¡LA SOLUCIÓN AL AUTO-ESCANEO! ---
-  // Una variable 'static' NUNCA se reinicia, aunque la página se destruya
-  // y se vuelva a crear.
-  static bool _autoScanPerformed = false;
-  // --- FIN DE LA SOLUCIÓN ---
+  // (Ya no necesitamos la variable estática _hasAutoScanned porque SIEMPRE escanea)
 
   bool scanning = false;
   bool success = false;
-  String message = "Acerca el celular al punto de pago";
+  bool hasError = false; 
+  String message = "Buscando punto de pago..."; // Mensaje por defecto
 
   late AnimationController _controller;
   late Animation<double> _pulseAnimation;
@@ -45,40 +42,33 @@ class _NfcScanPageState extends State<NfcScanPage>
 
     _cargarHistorial();
 
-    // --- 2. LÓGICA DE INICIO MODIFICADA ---
-    if (!_autoScanPerformed) {
-      // Si es la primera vez, inicia el escaneo automático
-      Future.delayed(const Duration(milliseconds: 300), _startScan);
-      _autoScanPerformed = true; // Y marca que ya lo hiciste
-    } else {
-      // Si ya NO es la primera vez, asegúrate de que la UI
-      // esté en modo de reposo (mostrando "Acerca el celular...")
-      setState(() {
-        scanning = false;
-        message = "Acerca el celular al punto de pago";
-      });
-    }
-    // --- FIN DE LA MODIFICACIÓN ---
+    // --- CAMBIO 1: SIEMPRE INICIAMOS EL ESCANEO ---
+    // No importa si es la 1ra o la 10ma vez, arrancamos el radar.
+    Future.delayed(const Duration(milliseconds: 300), _startScan);
+    // ----------------------------------------------
   }
 
   Future<void> _cargarHistorial() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> historialJson = prefs.getStringList('historial') ?? [];
+    
     final List<Map<String, dynamic>> transacciones = historialJson.map((itemString) {
       try {
         return json.decode(itemString) as Map<String, dynamic>;
       } catch (e) {
-        return <String, dynamic>{}; // Devuelve mapa vacío si hay error
+        return <String, dynamic>{};
       }
-    }).where((map) => map.isNotEmpty).toList(); // Filtra mapas vacíos
+    }).where((map) => map.isNotEmpty).toList();
 
     transacciones.sort((a, b) {
       return (b['timestamp'] ?? '').compareTo(a['timestamp'] ?? '');
     });
 
-    setState(() {
-      _ultimasTransacciones = transacciones.take(3).toList();
-    });
+    if (mounted) {
+      setState(() {
+        _ultimasTransacciones = transacciones.take(3).toList();
+      });
+    }
   }
 
   @override
@@ -87,130 +77,160 @@ class _NfcScanPageState extends State<NfcScanPage>
     super.dispose();
   }
 
-  // --- 3. FUNCIÓN _startScan CON NAVEGACIÓN Y ERRORES CORREGIDOS ---
-// (En tu archivo nfc_scan_page.dart)
+  Future<void> _startScan() async {
+    _cargarHistorial();
 
-Future<void> _startScan() async {
-  _cargarHistorial();
-
-  if (scanning) return;
-  setState(() {
-    scanning = true;
-    success = false;
-    message = "Esperando tarjeta...";
-  });
-
-  try {
-    NFCTag tag = await FlutterNfcKit.poll(timeout: const Duration(seconds: 20));
-
-    // (Tu lógica de NDEF, records, y content está perfecta)
-    if (tag.ndefAvailable != true) {
-      throw Exception("La tarjeta no contiene datos válidos");
-    }
-    List<dynamic> records =
-        await FlutterNfcKit.readNDEFRecords(cached: false);
-    if (records.isEmpty) {
-      throw Exception("El tag está vacío");
-    }
-    final rec = records.first;
-    String content;
-    if (rec.payload is String) {
-      content = rec.payload;
-    } else if (rec.payload is List<int>) {
-      content = utf8.decode(rec.payload);
-    } else {
-      content = rec.payload.toString();
-    }
-    final data = json.decode(content);
-
-    // --- ¡AQUÍ ESTÁ LA ACTUALIZACIÓN BASADA EN TU IMAGEN! ---
+    // Si ya estamos escaneando, no hacemos nada para no duplicar
+    if (scanning) return;
     
-    final String? tipoTransporte = data['servicio']?['tipo_transporte'];
-    String? rutaDestino;
-
-    switch (tipoTransporte) {
-      case '01': // <-- Código 01 = MINIBUS
-        rutaDestino = '/minibus_payment';
-        break;
-      case '02': // <-- Código 02 = TRUFI
-        rutaDestino = '/trufis_payment';
-        break;
-      case '03': // <-- Código 03 = TAXI
-        rutaDestino = '/taxi_payment';
-        break;
-      default:
-        // Si el código es "04" (o cualquier otro), es un error
-        throw Exception("Tag de transporte no reconocido");
-    }
-    // --- FIN DE LA ACTUALIZACIÓN ---
-
-    // (Tu lógica de éxito visual está perfecta)
-    setState(() { success = true; message = "Lectura correcta"; });
-    HapticFeedback.mediumImpact();
-    await Future.delayed(const Duration(milliseconds: 650));
-    await FlutterNfcKit.finish();
-    if (!mounted) return;
-
-    // (Tu lógica de navegación "await pushNamed" está perfecta)
-    await Navigator.pushNamed(
-      context,
-      rutaDestino,
-      arguments: data,
-    );
-
-    // (Tu lógica de reseteo de UI está perfecta)
     setState(() {
-      scanning = false;
+      scanning = true;
       success = false;
-      message = "Acerca el celular al punto de pago";
+      hasError = false;
+      message = "Acerca el celular al punto de pago...";
     });
 
-  } catch (e) {
-    // (Tu lógica de 'catch' está perfecta)
-    String errorMessage;
-    if (e is PlatformException && e.code == '408') {
-      errorMessage = "Tiempo de espera agotado. Intenta de nuevo.";
-    } else if (e is Exception) {
-      errorMessage = e.toString().replaceAll("Exception: ", "");
-    } else {
-      errorMessage = "Error desconocido. Intenta de nuevo.";
-    }
-    setState(() {
-      message = errorMessage;
-      scanning = false;
-    });
     try {
+      // Buscamos tag (espera 20 segundos)
+      NFCTag tag = await FlutterNfcKit.poll(timeout: const Duration(seconds: 20));
+
+      if (tag.ndefAvailable != true) {
+        throw Exception("Datos no válidos");
+      }
+
+      List<dynamic> records = await FlutterNfcKit.readNDEFRecords(cached: false);
+      
+      if (records.isEmpty) {
+        throw Exception("Etiqueta vacía");
+      }
+
+      final rec = records.first;
+      String content;
+      if (rec.payload is String) {
+        content = rec.payload;
+      } else if (rec.payload is List<int>) {
+        content = utf8.decode(rec.payload);
+      } else {
+        content = rec.payload.toString();
+      }
+
+      final data = json.decode(content);
+
+      // Enrutamiento
+      final String? tipoTransporte = data['servicio']?['tipo_transporte'];
+      String? rutaDestino;
+
+      switch (tipoTransporte) {
+        case '01': rutaDestino = '/minibus_payment'; break;
+        case '02': rutaDestino = '/trufis_payment'; break;
+        case '03': rutaDestino = '/taxi_payment'; break;
+        default: throw Exception("Transporte desconocido");
+      }
+
+      // Éxito
+      setState(() {
+        success = true;
+        message = "¡Encontrado!";
+      });
+      HapticFeedback.mediumImpact();
+
+      await Future.delayed(const Duration(milliseconds: 650));
       await FlutterNfcKit.finish();
-    } catch (_) {}
+
+      if (!mounted) return;
+
+      // Navegación (Pausa la pantalla)
+      await Navigator.pushNamed(
+        context,
+        rutaDestino,
+        arguments: data,
+      );
+
+      // --- CAMBIO 2: AL VOLVER, REINICIAMOS EL ESCANEO ---
+      if (mounted) {
+        // Reseteamos variables pero NO ponemos scanning = false
+        // Inmediatamente nos llamamos a nosotros mismos para seguir buscando.
+        setState(() {
+          scanning = false; // Lo ponemos false un instante para que _startScan arranque
+          success = false;
+        });
+        _startScan(); // <--- ¡AQUÍ ESTÁ EL BUCLE INFINITO (LOOP)!
+      }
+      // ---------------------------------------------------
+
+    } catch (e) {
+      // --- MANEJO DE ERROR ---
+      // Si hay error, AQUÍ SÍ detenemos el bucle y mostramos el botón.
+      
+      String errorMessage;
+      if (e is PlatformException && e.code == '408') {
+        errorMessage = "Tiempo agotado. ¿Reintentar?";
+      } else if (e is Exception) {
+        errorMessage = e.toString().replaceAll("Exception: ", "");
+      } else {
+        errorMessage = "Error de lectura";
+      }
+
+      if (mounted) {
+        setState(() {
+          hasError = true;
+          scanning = false; // <--- ESTO HACE APARECER EL BOTÓN
+          message = errorMessage;
+        });
+      }
+      
+      if (hasError) HapticFeedback.heavyImpact();
+
+      try {
+        await FlutterNfcKit.finish();
+      } catch (_) {}
+    }
   }
-}
 
   Widget _buildIconArea() {
-    // (Tu función está perfecta, se queda igual)
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 350), 
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return ScaleTransition(scale: animation, child: child);
+      },
       child: success
-          ? Icon(
-              Icons.check_circle_rounded,
-              key: const ValueKey('tick'),
-              size: 130,
-              color: Colors.green,
+          ? Container(
+              key: const ValueKey('success'),
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.2),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  )
+                ],
+              ),
+              child: const Icon(Icons.check_circle_rounded, size: 100, color: Colors.green),
             )
-          : scanning
-              ? SizedBox(
-                  key: const ValueKey('loader'),
+          : hasError
+              ? Container(
+                  key: const ValueKey('error'),
                   width: 140,
                   height: 140,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 6,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-                    ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.2),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      )
+                    ],
                   ),
+                  child: const Icon(Icons.cancel_rounded, size: 100, color: Colors.red),
                 )
-              : ScaleTransition(
-                  key: const ValueKey('icon'),
+              : ScaleTransition( // ESTADO ESCANEANDO (Siempre activo)
+                  key: const ValueKey('pulse'),
                   scale: _pulseAnimation,
                   child: Container(
                     width: 140,
@@ -219,12 +239,12 @@ Future<void> _startScan() async {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.rectangle,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 12,
-                          spreadRadius: 2,
+                          color: AppColors.primaryGreen.withOpacity(0.4),
+                          blurRadius: 20,
+                          spreadRadius: 5,
                         )
                       ],
                     ),
@@ -240,7 +260,6 @@ Future<void> _startScan() async {
 
   @override
   Widget build(BuildContext context) {
-    // (Tu build está perfecto, se queda igual)
     final textTheme = Theme.of(context).textTheme;
     final width = MediaQuery.of(context).size.width;
 
@@ -249,11 +268,13 @@ Future<void> _startScan() async {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: false,
         iconTheme: const IconThemeData(color: AppColors.textBlack),
       ),
       body: SafeArea(
         child: Column(
           children: [
+            const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
@@ -267,69 +288,66 @@ Future<void> _startScan() async {
                 ),
               ),
             ),
+
             const SizedBox(height: 22),
+
             Expanded(
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildIconArea(),
-                    const SizedBox(height: 18),
-                    Text(
-                      message, // Ahora muestra mensajes amigables
-                      style: textTheme.headlineSmall?.copyWith(
-                        color: AppColors.textBlack,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 34),
-                    ElevatedButton(
-                      onPressed: scanning ? null : _startScan,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGreen,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 36, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        disabledBackgroundColor: AppColors.primaryGreen.withOpacity(0.7),
-                        minimumSize: const Size(180, 52),
-                      ),
+                    const SizedBox(height: 24),
+                    
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30.0),
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: scanning
-                            ? const Row(
-                                key: ValueKey('scanning'),
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 3,
-                                    ),
-                                  ),
-                                  SizedBox(width: 16),
-                                  Text(
-                                    "Escaneando...",
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                                ],
-                              )
-                            : const Text(
-                                "Reintentar",
-                                key: ValueKey('retry'),
-                                style: TextStyle(fontSize: 16),
-                              ),
+                        duration: const Duration(milliseconds: 200),
+                        child: Text(
+                          message,
+                          key: ValueKey(message),
+                          style: textTheme.headlineSmall?.copyWith(
+                            color: hasError ? Colors.red : AppColors.textBlack,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
+                    
+                    const SizedBox(height: 34),
+
+                    // --- CAMBIO 3: EL BOTÓN SÓLO APARECE SI NO ESTÁ ESCANEANDO ---
+                    // Como ahora siempre escanea, esto significa que el botón 
+                    // SOLO aparece si hubo un ERROR (hasError = true).
+                    if (!scanning)
+                      ElevatedButton(
+                        onPressed: _startScan, // Al presionar, reinicia el bucle
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: hasError ? Colors.red : AppColors.primaryGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 36, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          minimumSize: const Size(180, 52),
+                        ),
+                        child: const Text(
+                          "Reintentar",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      )
+                    else
+                      // Espacio vacío para mantener la altura cuando no hay botón
+                      const SizedBox(height: 52), 
+                    // -------------------------------------------------------------
                   ],
                 ),
               ),
             ),
+
             Container(
               width: width * 0.88,
               margin: const EdgeInsets.only(bottom: 18),
@@ -367,9 +385,11 @@ Future<void> _startScan() async {
                     )
                   else
                     ..._ultimasTransacciones.map((transaccion) {
-                      final String tipo = (transaccion['type'] ?? '...').toUpperCase();
+                      final String tipo = (transaccion['type'] ?? '...').toString().toUpperCase();
                       final String nombre = transaccion['nombre'] ?? 'Error';
-                      final double precio = transaccion['precio'] ?? 0.0;
+                      final double precio = (transaccion['precio'] is num) 
+                          ? (transaccion['precio'] as num).toDouble() 
+                          : 0.0;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10.0),
