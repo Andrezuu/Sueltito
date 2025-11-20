@@ -1,4 +1,5 @@
 import 'package:sueltito/features/auth/domain/entities/profile_change_response.dart';
+import 'package:sueltito/features/auth/domain/entities/add_profile_response.dart';
 
 import '../../domain/entities/auth_response.dart';
 import '../../domain/entities/register_request.dart';
@@ -57,6 +58,22 @@ class AuthRepositoryImpl implements AuthRepository {
       final updatedUser = userModel.copyWith(
         perfiles: [newProfile], 
       );
+      await localDataSource.saveUser(updatedUser);
+    }
+
+    return responseModel.toEntity();
+  }
+
+  @override
+  Future<AddProfileResponse> addProfile(String userId, String cuenta, String tipoCuenta) async {
+    final responseModel = await remoteDataSource.addProfile(userId, cuenta, tipoCuenta);
+
+    // Update local user with the new profiles if present
+    final userModel = await localDataSource.getUser();
+    if (userModel != null) {
+      final perfilList = responseModel.perfil.map((p) => p.perfil).toList();
+      final updatedPerfiles = <String>{...userModel.perfiles, ...perfilList}.toList();
+      final updatedUser = userModel.copyWith(perfiles: updatedPerfiles);
       await localDataSource.saveUser(updatedUser);
     }
 
