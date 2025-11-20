@@ -1,40 +1,93 @@
 import 'package:flutter/material.dart';
-import 'package:sueltito/core/config/app_theme.dart';
-import 'package:sueltito/core/widgets/sueltito_text_field.dart';
-// (En sign_up_page.dart)
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sueltito/core/config/app_theme.dart';
+import 'package:sueltito/core/constants/app_paths.dart';
+import 'package:sueltito/core/widgets/sueltito_text_field.dart';
+import 'package:sueltito/features/auth/domain/entities/auth_response.dart';
+import '../providers/auth_provider.dart';
+import 'package:sueltito/core/services/notification_service.dart';
+import '../providers/register_provider.dart';
 
-class SignUpPage extends StatefulWidget {
+class SignUpPage extends ConsumerStatefulWidget {
   const SignUpPage({super.key});
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  ConsumerState<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
-  // Controllers
-  final nameCtrl = TextEditingController();
-  final apellido1Ctrl = TextEditingController();
-  final apellido2Ctrl = TextEditingController();
-  final ciCtrl = TextEditingController();
-  final complementoCtrl = TextEditingController();
-  // final expedidoCtrl = TextEditingController(); // Ya no se necesita, usamos _selectedExpedido
-  final fechaCtrl = TextEditingController();
-  final phoneCtrl = TextEditingController();
-  final emailCtrl = TextEditingController();
-  
-  // --- Variable para el Dropdown ---
-  String? _selectedExpedido;
-  final List<String> _departamentos = [
-    'LP', 'SC', 'CB', 'CH', 'OR', 'PT', 'TJ', 'BN', 'PA', 'SIN EXTENCION'
-  ];
-  
-  // PIN controllers
+class _SignUpPageState extends ConsumerState<SignUpPage> {
+  final TextEditingController fechaCtrl = TextEditingController();
   final pinCtrl = List.generate(4, (_) => TextEditingController());
+
+  @override
+  void dispose() {
+    fechaCtrl.dispose();
+    for (final ctrl in pinCtrl) {
+      ctrl.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      locale: const Locale('es'),
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryGreen,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      ref.read(registerFormProvider.notifier).updateFechaNacimiento(picked);
+      fechaCtrl.text =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+    }
+  }
+
+  Future<void> _handleRegister() async {
+    try {
+      await ref.read(registerFormProvider.notifier).submitRegister(context);
+    } catch (e) {
+      if (mounted) {
+        ref.read(notificationServiceProvider).showWarning(
+          e.toString().replaceAll('Exception: ', ''),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final authState = ref.watch(authProvider);
+    final formState = ref.watch(registerFormProvider);
+
+    final notificationService = ref.read(notificationServiceProvider);
+    ref.listen<AsyncValue<AuthResponse?>>(authProvider, (previous, next) {
+      next.when(
+        data: (response) {
+          if (response != null) {
+            notificationService.showSuccess('Registro exitoso');
+            context.go(AppPaths.passengerHome);
+          }
+        },
+        error: (error, stack) {
+          notificationService.showError(error.toString().replaceAll('Exception: ', ''));
+        },
+        loading: () {},
+      );
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -42,7 +95,7 @@ class _SignUpPageState extends State<SignUpPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textBlack),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
@@ -67,8 +120,9 @@ class _SignUpPageState extends State<SignUpPage> {
                       // Nombre
                       SueltitoTextField(
                         hintText: 'Nombre',
-                        controller: nameCtrl,
-                        // --- FILTRO: Solo letras y espacios ---
+                        enabled: !authState.isLoading,
+                        onChanged: (value) =>
+                            ref.read(registerFormProvider.notifier).updateNombre(value),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                         ],
@@ -81,8 +135,10 @@ class _SignUpPageState extends State<SignUpPage> {
                           Expanded(
                             child: SueltitoTextField(
                               hintText: 'Primer Apellido',
-                              controller: apellido1Ctrl,
-                              // --- FILTRO: Solo letras y espacios ---
+                              enabled: !authState.isLoading,
+                              onChanged: (value) => ref
+                                  .read(registerFormProvider.notifier)
+                                  .updatePrimerApellido(value),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                               ],
@@ -92,8 +148,10 @@ class _SignUpPageState extends State<SignUpPage> {
                           Expanded(
                             child: SueltitoTextField(
                               hintText: 'Segundo Apellido',
-                              controller: apellido2Ctrl,
-                              // --- FILTRO: Solo letras y espacios ---
+                              enabled: !authState.isLoading,
+                              onChanged: (value) => ref
+                                  .read(registerFormProvider.notifier)
+                                  .updateSegundoApellido(value),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                               ],
@@ -103,15 +161,18 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // --- ARREGLADO: CI + Complemento (en una fila) ---
+                      // CI + Complemento
                       Row(
                         children: [
                           Expanded(
-                            flex: 3, // Damos más espacio al CI
+                            flex: 3,
                             child: SueltitoTextField(
                               hintText: 'C.I.',
-                              controller: ciCtrl,
+                              enabled: !authState.isLoading,
                               keyboardType: TextInputType.number,
+                              onChanged: (value) => ref
+                                  .read(registerFormProvider.notifier)
+                                  .updateCI(value),
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
@@ -119,10 +180,13 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            flex: 2, // Menos espacio para el complemento
+                            flex: 2,
                             child: SueltitoTextField(
                               hintText: 'Comple. (Opcional)',
-                              controller: complementoCtrl,
+                              enabled: !authState.isLoading,
+                              onChanged: (value) => ref
+                                  .read(registerFormProvider.notifier)
+                                  .updateComplemento(value),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
                                 LengthLimitingTextInputFormatter(3),
@@ -133,72 +197,52 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // --- ARREGLADO: Expedido (como Dropdown/ComboBox) ---
+                      // Expedido
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedExpedido,
+                        value: formState.expedido.isEmpty ? null : formState.expedido,
                         hint: const Text('Expedido en...'),
                         decoration: InputDecoration(
-                          filled: true,              // 1. Activar el relleno
-                          fillColor: Colors.white,   // 2. Color blanco
+                          filled: true,
+                          fillColor: Colors.white,
                           counterText: "",
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        items: _departamentos.map((String depto) {
+                        items: [
+                          'LP', 'SC', 'CB', 'CH', 'OR', 'PT', 'TJ', 'BN', 'PA', 'SIN EXTENSION'
+                        ].map((String depto) {
                           return DropdownMenuItem<String>(
                             value: depto,
                             child: Text(depto),
                           );
                         }).toList(),
                         onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedExpedido = newValue;
-                          });
+                          ref.read(registerFormProvider.notifier).updateExpedido(newValue ?? '');
                         },
                       ),
                       const SizedBox(height: 16),
-                      // --- FIN DE LA CORRECCIÓN ---
 
                       // Fecha de nacimiento
                       SueltitoTextField(
                         hintText: "Fecha de Nacimiento (YYYY-MM-DD)",
                         controller: fechaCtrl,
+                        enabled: !authState.isLoading,
                         keyboardType: TextInputType.none,
-                        onTap: () async {
-                          FocusScope.of(context).unfocus();
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime(2000),
-                            firstDate: DateTime(1950),
-                            lastDate: DateTime.now(),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: AppColors.primaryGreen,
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-
-                          if (picked != null) {
-                            fechaCtrl.text =
-                                "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                          }
-                        },
+                        onTap: authState.isLoading ? null : () => _selectDate(context),
+                        readOnly: true,
                       ),
                       const SizedBox(height: 16),
 
                       // Celular
                       SueltitoTextField(
                         hintText: 'Celular',
-                        controller: phoneCtrl,
+                        enabled: !authState.isLoading,
                         keyboardType: TextInputType.phone,
                         prefixText: "+591 ",
-                        // --- FILTRO: Solo números y límite de 8 ---
+                        onChanged: (value) => ref
+                            .read(registerFormProvider.notifier)
+                            .updateCelular(value),
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(8),
@@ -209,8 +253,11 @@ class _SignUpPageState extends State<SignUpPage> {
                       // Email
                       SueltitoTextField(
                         hintText: 'Correo',
-                        controller: emailCtrl,
+                        enabled: !authState.isLoading,
                         keyboardType: TextInputType.emailAddress,
+                        onChanged: (value) => ref
+                            .read(registerFormProvider.notifier)
+                            .updateCorreo(value),
                       ),
                       const SizedBox(height: 32),
 
@@ -234,7 +281,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               maxLength: 1,
                               textAlign: TextAlign.center,
                               keyboardType: TextInputType.number,
-                              // --- FILTRO: Solo números ---
+                              enabled: !authState.isLoading,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
@@ -245,6 +292,9 @@ class _SignUpPageState extends State<SignUpPage> {
                                 ),
                               ),
                               onChanged: (value) {
+                                ref
+                                    .read(registerFormProvider.notifier)
+                                    .updatePin(i, value);
                                 if (value.isNotEmpty && i < 3) {
                                   FocusScope.of(context).nextFocus();
                                 }
@@ -256,7 +306,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           );
                         }),
                       ),
-
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -265,27 +314,29 @@ class _SignUpPageState extends State<SignUpPage> {
 
               // Botón continuar
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-      context, 
-      '/passenger_home', // Esta ruta carga MainNavigationPage
-      (route) => false   // Esto borra todas las pantallas anteriores (Login/Registro)
-    );
-                },
+                onPressed: authState.isLoading ? null : _handleRegister,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGreen,
                   foregroundColor: AppColors.textWhite,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  // --- ESTILO AÑADIDO: Ancho completo ---
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Continuar',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: authState.isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Continuar',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
 
               const SizedBox(height: 24),
@@ -295,9 +346,11 @@ class _SignUpPageState extends State<SignUpPage> {
                 children: [
                   const Text('¿Ya formas parte de Sueltito? '),
                   TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/passenger_home');
-                    },
+                    onPressed: authState.isLoading
+                        ? null
+                        : () {
+                            context.go(AppPaths.login);
+                          },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,

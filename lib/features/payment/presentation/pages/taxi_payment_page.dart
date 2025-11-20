@@ -1,8 +1,6 @@
-// --- NUEVO: Imports necesarios ---
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-// --- FIN NUEVO ---
-
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:sueltito/core/config/app_theme.dart';
 import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart';
@@ -37,10 +35,11 @@ class _TaxiPaymentPageState extends State<TaxiPaymentPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_conductorData == null) {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args != null && args is Map<String, dynamic>) {
+      final state = GoRouterState.of(context);
+      final extra = state.extra;
+      if (extra != null && extra is Map<String, dynamic>) {
         setState(() {
-          _conductorData = args;
+          _conductorData = extra;
         });
       } else {
         print("Error: TaxiPaymentPage se abrió sin datos del conductor.");

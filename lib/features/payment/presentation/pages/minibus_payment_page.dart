@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 // --- FIN NUEVO ---
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sueltito/core/config/app_theme.dart';
+import 'package:sueltito/core/constants/app_paths.dart';
 import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart';
 import 'package:sueltito/features/payment/presentation/widgets/payment_confirmation_dialog.dart';
 import 'package:sueltito/features/payment/domain/entities/pasaje.dart';
@@ -23,9 +25,12 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
 
   bool _isPreferencial = false;
   final List<Pasaje> _pasajesSeleccionados = [];
+
+  // --- NUEVA VARIABLE DE ESTADO ---
+  // true = próximo pago será exitoso, false = próximo pago será rechazado
   bool _simulateSuccess = true;
 
-  // --- PRECIOS ESPECÍFICOS PARA MINIBUS (SOLO CORTO Y LARGO) ---
+  // --- PRECIOS ---
   static const double _precioCorto = 2.40;
   static const double _precioCortoPref = 2.00;
   static const double _precioLargo = 3.00;
@@ -44,22 +49,15 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     
-    // Solo cargamos los datos la primera vez
     if (_conductorData == null) {
-      // 1. Obtenemos los argumentos enviados (el JSON del NFC)
-      final args = ModalRoute.of(context)?.settings.arguments;
-
-      // 2. Verificamos que no sean nulos y sean un Mapa
-      if (args != null && args is Map<String, dynamic>) {
-        // 3. Guardamos los datos en el estado
+      final state = GoRouterState.of(context);
+      final extra = state.extra;
+      if (extra != null && extra is Map<String, dynamic>) {
         setState(() {
-          _conductorData = args;
+          _conductorData = extra;
         });
       } else {
-        // 4. Manejo de error (si se abre la página sin datos)
         print("Error: MinibusPaymentPage se abrió sin datos del conductor.");
-        // Opcional: podrías cerrar la página si no hay datos
-        // Navigator.of(context).pop();
       }
     }
   }
@@ -117,7 +115,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
           _buildSummaryCard(context),
         ],
       ),
-    );
+  );
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
@@ -127,7 +125,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: AppColors.primaryGreen),
-        onPressed: () => Navigator.of(context).pop(),
+        onPressed: () => context.pop(),
       ),
       centerTitle: true,
       title: Text(
@@ -221,7 +219,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
                       _isPreferencial = value;
                     });
                   },
-                  activeThumbColor: AppColors.primaryGreen,
+                  activeColor: AppColors.primaryGreen,
                 ),
               ],
             ),
@@ -287,7 +285,6 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
     );
   }
 
-  // --- MODIFICADO: Añadimos la lógica de envío y guardado ---
   Widget _buildPayButton(BuildContext context) {
     bool hasItems = _pasajesSeleccionados.isNotEmpty;
 
@@ -300,6 +297,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
                     context: context,
                     barrierDismissible: false,
                     builder: (dialogContext) {
+                      // Usamos dialogContext
                       return PaymentConfirmationDialog(
                         pasajes: _pasajesSeleccionados,
                         total: totalAPagar,
@@ -349,16 +347,27 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
                             _simulateSuccess = !_simulateSuccess;
                           });
 
-                          Navigator.of(dialogContext).pop();
+                          // 3. Cerrar el diálogo
+                          dialogContext.pop();
 
-                          Navigator.of(context).pushNamed(
-                            '/payment_status',
-                            arguments: resultStatus,
+                          // 4. Navegar a la página de estado usando GoRouter
+                          context.go(
+                            AppPaths.paymentStatus,
+                            extra: resultStatus,
+                          );
+
+                          // 5. Limpiar la lista si el pago fue exitoso
+                          // 3. Cerrar el diálogo
+                          dialogContext.pop();
+
+                          // 4. Navegar a la página de estado usando GoRouter
+                          context.go(
+                            AppPaths.paymentStatus,
+                            extra: resultStatus,
                           );
                           // (Fin de tu simulación de pago)
 
 
-                          // --- NUEVO: GUARDAMOS EN EL HISTORIAL SI EL PAGO FUE EXITOSO ---
                           if (resultStatus == PaymentStatus.success) {
                             
                             try {
@@ -482,7 +491,6 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
             const Text(
               'Añade un tramo para comenzar...',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
             ),
           ...itemsWidget,
           const Divider(height: 32, thickness: 1),

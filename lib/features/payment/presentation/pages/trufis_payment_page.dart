@@ -1,11 +1,9 @@
-// --- NUEVO: Imports para JSON, guardado local y tu SueltitoTextField ---
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// --- FIN NUEVO ---
-
 import 'package:flutter/material.dart';
 import 'package:sueltito/core/config/app_theme.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sueltito/core/constants/app_paths.dart';
 import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart';
 import 'package:sueltito/features/payment/presentation/widgets/payment_confirmation_dialog.dart';
 import 'package:sueltito/features/payment/domain/entities/pasaje.dart';
@@ -56,14 +54,14 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
     super.didChangeDependencies();
     
     if (_conductorData == null) {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args != null && args is Map<String, dynamic>) {
+      final state = GoRouterState.of(context);
+      final extra = state.extra;
+      if (extra != null && extra is Map<String, dynamic>) {
         setState(() {
-          _conductorData = args;
+          _conductorData = extra;
         });
       } else {
         print("Error: TrufiPaymentPage se abrió sin datos del conductor.");
-        // Opcional: Navigator.of(context).pop();
       }
     }
   }
@@ -373,11 +371,13 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
                             _simulateSuccess = !_simulateSuccess;
                           });
 
-                          Navigator.of(dialogContext).pop();
+                          // 3. Cerrar el diálogo
+                          dialogContext.pop();
 
-                          Navigator.of(context).pushNamed(
-                            '/payment_status',
-                            arguments: resultStatus,
+                          // 4. Navegar con GoRouter
+                          context.go(
+                            AppPaths.paymentStatus,
+                            extra: resultStatus,
                           );
                           // (Fin de tu simulación de pago)
 

@@ -1,66 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// Core
 import 'package:sueltito/core/config/app_theme.dart';
 
-// --- IMPORTS DE AMBAS RAMAS (FUSIONADOS) ---
-import 'package:sueltito/features/auth/presentation/pages/splash_page.dart';
-import 'package:sueltito/features/auth/presentation/pages/welcome_page.dart';
-import 'package:sueltito/features/auth/presentation/pages/sign_up_page.dart';
-import 'package:sueltito/features/main_navigation/presentation/pages/main_navigation_page.dart';
-
-// Imports de Pago
-import 'package:sueltito/features/payment/presentation/pages/nfc_scan_page.dart'; // <-- De tu rama
-import 'package:sueltito/features/payment/presentation/pages/minibus_payment_page.dart'; // <-- De origin/fabricio
-import 'package:sueltito/features/payment/presentation/pages/trufis_payment_page.dart'; // <-- De origin/fabricio
-import 'package:sueltito/features/payment/presentation/pages/taxi_payment_page.dart'; // <-- De origin/fabricio
-import 'package:sueltito/features/payment/presentation/pages/payment_status_page.dart'; // <-- De origin/fabricio
-import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart'; // <-- De origin/fabricio
+import 'package:sueltito/core/config/global_keys.dart';
+import 'package:sueltito/core/navigation/presentation/app_router.dart';
 // --- FIN DE IMPORTS ---
 
 
-void main() async {
-  // Ambas ramas tenían esto, lo cual es correcto
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MainApp());
+  await dotenv.load(fileName: ".env");
+  runApp(
+    const ProviderScope(
+      child: MainApp(),
+    ),
+  );
 }
 
-class MainApp extends StatelessWidget {
+class MainApp extends ConsumerWidget {
   const MainApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Sueltito',
+      scaffoldMessengerKey: kScaffoldMessengerKey,
       theme: getAppTheme(),
-      home: const SplashPage(),
-      
-      // --- RUTAS FUSIONADAS ---
-      routes: {
-        // Rutas de Auth
-        '/welcome': (context) => const WelcomePage(),
-        '/sign_up': (context) => const SignUpPage(),
-        
-        // Ruta principal
-        '/passenger_home': (context) => const MainNavigationPage(),
-        
-        // --- Rutas de Pago (¡TODAS JUNTAS!) ---
-        
-        // La página de escaneo (de tu rama)
-        '/nfc_scan': (context) => const NfcScanPage(),
-        
-        // Las 3 páginas de pago (de origin/fabricio)
-        '/minibus_payment': (context) => const MinibusPaymentPage(),
-        '/trufis_payment': (context) => const TrufiPaymentPage(),
-        '/taxi_payment': (context) => const TaxiPaymentPage(),
-        
-        // La página de estado de pago (de origin/fabricio)
-        '/payment_status': (context) {
-          final PaymentStatus status =
-              ModalRoute.of(context)!.settings.arguments as PaymentStatus;
-          return PaymentStatusPage(status: status);
-        },
-      },
-      // --- FIN DE RUTAS ---
+      routerConfig: router,
+      locale: const Locale('es', 'BO'),
+      supportedLocales: const [
+        Locale('es', 'BO'),
+        Locale('es'),
+        Locale('en'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }

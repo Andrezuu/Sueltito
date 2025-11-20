@@ -9,6 +9,10 @@ class SueltitoTextField extends StatelessWidget {
   final String? prefixText;
   final VoidCallback? onTap;
   final List<TextInputFormatter>? inputFormatters;
+  final bool readOnly;
+  final Widget? suffixIcon;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
 
   const SueltitoTextField({
     super.key,
@@ -19,6 +23,10 @@ class SueltitoTextField extends StatelessWidget {
     this.prefixText,
     this.onTap,
     this.inputFormatters,
+    this.readOnly = false,
+    this.suffixIcon,
+    this.enabled = true,
+    this.onChanged,
   });
 
   @override
@@ -35,6 +43,9 @@ class SueltitoTextField extends StatelessWidget {
       obscureText: obscureText,
       inputFormatters: formatters,
       onTap: onTap,
+      readOnly: readOnly,
+      enabled: enabled,
+      onChanged: onChanged,
       decoration: InputDecoration(
         prefixIcon: prefixText != null
             ? Padding(
@@ -59,7 +70,7 @@ class SueltitoTextField extends StatelessWidget {
 
         filled: true,
         fillColor: Colors.white,
-
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_nfc_kit/flutter_nfc_kit.dart';
 import 'package:sueltito/core/config/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sueltito/core/constants/app_paths.dart';
 
 class NfcScanPage extends StatefulWidget {
   const NfcScanPage({super.key});
@@ -78,11 +80,9 @@ class _NfcScanPageState extends State<NfcScanPage>
   }
 
   Future<void> _startScan() async {
-    _cargarHistorial();
-
-    // Si ya estamos escaneando, no hacemos nada para no duplicar
+    print('[NFC] Iniciando escaneo...');
     if (scanning) return;
-    
+
     setState(() {
       scanning = true;
       success = false;
@@ -91,16 +91,19 @@ class _NfcScanPageState extends State<NfcScanPage>
     });
 
     try {
-      // Buscamos tag (espera 20 segundos)
       NFCTag tag = await FlutterNfcKit.poll(timeout: const Duration(seconds: 20));
+      print('[NFC] Tag leído: $tag');
 
       if (tag.ndefAvailable != true) {
+        print('[NFC] Tag no tiene NDEF disponible');
         throw Exception("Datos no válidos");
       }
 
       List<dynamic> records = await FlutterNfcKit.readNDEFRecords(cached: false);
-      
+      print('[NFC] Records: $records');
+
       if (records.isEmpty) {
+        print('[NFC] Etiqueta vacía');
         throw Exception("Etiqueta vacía");
       }
 
@@ -113,25 +116,29 @@ class _NfcScanPageState extends State<NfcScanPage>
       } else {
         content = rec.payload.toString();
       }
+      print('[NFC] Payload: $content');
 
       final data = json.decode(content);
+      print('[NFC] Data decodificada: $data');
 
-      // Enrutamiento
       final String? tipoTransporte = data['servicio']?['tipo_transporte'];
-      String? rutaDestino;
+      print('[NFC] Tipo transporte: $tipoTransporte');
 
+      String? rutaDestino;
       switch (tipoTransporte) {
-        case '01': rutaDestino = '/minibus_payment'; break;
-        case '02': rutaDestino = '/trufis_payment'; break;
-        case '03': rutaDestino = '/taxi_payment'; break;
-        default: throw Exception("Transporte desconocido");
+        case '01': rutaDestino = AppPaths.minibusPayment; break;
+        case '02': rutaDestino = AppPaths.trufisPayment; break;
+        case '03': rutaDestino = AppPaths.taxiPayment; break;
+        default:
+          print('[NFC] Transporte desconocido');
+          throw Exception("Transporte desconocido");
       }
 
-      // Éxito
       setState(() {
         success = true;
         message = "¡Encontrado!";
       });
+      print('[NFC] ¡Encontrado! Navegando a $rutaDestino');
       HapticFeedback.mediumImpact();
 
       await Future.delayed(const Duration(milliseconds: 650));
@@ -139,29 +146,19 @@ class _NfcScanPageState extends State<NfcScanPage>
 
       if (!mounted) return;
 
-      // Navegación (Pausa la pantalla)
-      await Navigator.pushNamed(
-        context,
-        rutaDestino,
-        arguments: data,
-      );
+      GoRouter.of(context).push(rutaDestino, extra: data);
 
-      // --- CAMBIO 2: AL VOLVER, REINICIAMOS EL ESCANEO ---
       if (mounted) {
-        // Reseteamos variables pero NO ponemos scanning = false
-        // Inmediatamente nos llamamos a nosotros mismos para seguir buscando.
         setState(() {
-          scanning = false; // Lo ponemos false un instante para que _startScan arranque
+          scanning = false;
           success = false;
         });
-        _startScan(); // <--- ¡AQUÍ ESTÁ EL BUCLE INFINITO (LOOP)!
+        print('[NFC] Reiniciando escaneo tras navegación');
+        _startScan();
       }
-      // ---------------------------------------------------
-
-    } catch (e) {
-      // --- MANEJO DE ERROR ---
-      // Si hay error, AQUÍ SÍ detenemos el bucle y mostramos el botón.
-      
+    } catch (e, st) {
+      print('[NFC][ERROR] $e');
+      print('[NFC][STACK] $st');
       String errorMessage;
       if (e is PlatformException && e.code == '408') {
         errorMessage = "Tiempo agotado. ¿Reintentar?";
@@ -174,11 +171,11 @@ class _NfcScanPageState extends State<NfcScanPage>
       if (mounted) {
         setState(() {
           hasError = true;
-          scanning = false; // <--- ESTO HACE APARECER EL BOTÓN
+          scanning = false;
           message = errorMessage;
         });
       }
-      
+
       if (hasError) HapticFeedback.heavyImpact();
 
       try {
