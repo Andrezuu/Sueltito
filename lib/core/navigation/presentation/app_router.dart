@@ -31,7 +31,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return auth.when(
         loading: () => null,
         error: (_, __) {
-          return state.fullPath == AppPaths.login ? null : AppPaths.login;
+          return RoutePermissions.isPublic(state.fullPath ?? '') ? null : AppPaths.login;
         },
         data: (resp) {
           final loggedIn = resp != null;

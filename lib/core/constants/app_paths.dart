@@ -16,6 +16,7 @@ class AppPaths {
   static const trufisPayment = '/trufis_payment';
   static const taxiPayment = '/taxi_payment';
   static const paymentStatus = '/payment_status';
+  static const nfcPage = '/nfc_scan';
   
   // ===== DRIVER ROUTES =====
   static const driverHome = '/driver_home';

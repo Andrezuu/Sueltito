@@ -117,7 +117,7 @@ class PaymentConfirmationDialog extends StatelessWidget {
                   ],
                 ),
               );
-            }).toList(),
+            }),
             const SizedBox(height: 20),
 
             // 4. Botones de Acción

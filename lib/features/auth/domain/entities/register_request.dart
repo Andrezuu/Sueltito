@@ -4,10 +4,13 @@ class RegisterRequest {
   final String? segundoApellido;
   final String nroDocumento;
   final String tipoDocumento;
+  final String? complemento;
+  final String expedido;
   final String fechaNacimiento;
   final String celular;
   final String nroCuenta;
   final String correo;
+  final String pin;
   final String numeroBluetooth;
   final String numeroImei;
   final String sistemaOperativo;
@@ -27,10 +30,13 @@ class RegisterRequest {
     this.segundoApellido,
     required this.nroDocumento,
     required this.tipoDocumento,
+    this.complemento,
+    required this.expedido,
     required this.fechaNacimiento,
     required this.celular,
     required this.nroCuenta,
     required this.correo,
+    required this.pin,
     required this.numeroBluetooth,
     required this.numeroImei,
     required this.sistemaOperativo,
@@ -42,6 +48,6 @@ class RegisterRequest {
     required this.dimensionPantalla,
     required this.latitud,
     required this.longitud,
-    this.remember = false, 
+    this.remember = false,
   });
 }

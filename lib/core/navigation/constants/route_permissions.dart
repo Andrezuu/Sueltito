@@ -12,6 +12,7 @@ import 'package:sueltito/features/main_navigation/presentation/pages/main_naviga
 import 'package:sueltito/features/driver/presentation/pages/driver_home_page.dart';
 import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart';
 import 'package:sueltito/features/payment/presentation/pages/minibus_payment_page.dart';
+import 'package:sueltito/features/payment/presentation/pages/nfc_scan_page.dart';
 import 'package:sueltito/features/payment/presentation/pages/trufis_payment_page.dart';
 import 'package:sueltito/features/payment/presentation/pages/taxi_payment_page.dart';
 import 'package:sueltito/features/payment/presentation/pages/payment_status_page.dart';
@@ -61,6 +62,11 @@ class RoutePermissions {
     RouteConfig(
       path: AppPaths.taxiPayment,
       builder: (context, state) => const TaxiPaymentPage(),
+      permission: const Permission(requiredPerfiles: [Roles.pasajero]),
+    ),
+    RouteConfig(
+      path: AppPaths.nfcPage,
+      builder: (context, state) => const NfcScanPage(),
       permission: const Permission(requiredPerfiles: [Roles.pasajero]),
     ),
 

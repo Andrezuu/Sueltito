@@ -1,3 +1,8 @@
+// --- NUEVO: Imports para JSON y guardado local ---
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+// --- FIN NUEVO ---
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sueltito/core/config/app_theme.dart';
@@ -14,6 +19,10 @@ class MinibusPaymentPage extends StatefulWidget {
 }
 
 class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
+  // --- NUEVO: Variable para guardar los datos del NFC ---
+  Map<String, dynamic>? _conductorData;
+  // --- FIN NUEVO ---
+
   bool _isPreferencial = false;
   final List<Pasaje> _pasajesSeleccionados = [];
 
@@ -35,6 +44,25 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
   double get totalAPagar =>
       _pasajesSeleccionados.fold(0.0, (sum, item) => sum + item.precio);
 
+  // --- NUEVO: Lógica para recibir los datos del NFC ---
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    if (_conductorData == null) {
+      final state = GoRouterState.of(context);
+      final extra = state.extra;
+      if (extra != null && extra is Map<String, dynamic>) {
+        setState(() {
+          _conductorData = extra;
+        });
+      } else {
+        print("Error: MinibusPaymentPage se abrió sin datos del conductor.");
+      }
+    }
+  }
+  // --- FIN NUEVO ---
+
   void _addPasaje(String nombre, double precio) {
     setState(() {
       _pasajesSeleccionados.add(Pasaje(nombre: nombre, precio: precio));
@@ -49,6 +77,18 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    // --- NUEVO: Muestra un 'cargando' hasta que los datos del NFC lleguen ---
+    if (_conductorData == null) {
+      return const Scaffold(
+        body: Center(
+          // Muestra un indicador de carga
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    // --- FIN NUEVO ---
+
+    // El resto de la UI se construye normal una vez que _conductorData existe
     return Scaffold(
       appBar: _buildAppBar(context),
       body: Column(
@@ -60,7 +100,9 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildDriverInfoCard(),
+                  // --- pasamos los datos del conductor ---
+                  _buildDriverInfoCard(_conductorData!),
+                  // ------
                   const SizedBox(height: 24),
                   _buildFareSelection(context),
                   const SizedBox(height: 24),
@@ -78,6 +120,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
+      // ...AppBar
       backgroundColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
@@ -89,14 +132,25 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
         'Bienvenido al Minibus\nFabricio',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: AppColors.primaryGreen,
-          fontWeight: FontWeight.bold,
-        ),
+              color: AppColors.primaryGreen,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
 
-  Widget _buildDriverInfoCard() {
+  // --- MODIFICADO: Esta función ahora es dinámica y recibe el JSON ---
+  Widget _buildDriverInfoCard(Map<String, dynamic> driverData) {
+    // 1. Extraemos los bloques (con '?? {}' para evitar errores si no existen)
+    final propietario = driverData['propietario'] as Map<String, dynamic>? ?? {};
+    final servicio = driverData['servicio'] as Map<String, dynamic>? ?? {};
+
+    // 2. Extraemos los datos que queremos mostrar (como hicimos con el Trufi)
+    //    El usuario dijo que el JSON no cambia, así que usamos la misma estructura.
+    final String nombre = propietario['nombre'] as String? ?? 'Conductor no encontrado';
+    final String placa = servicio['identificador'] as String? ?? 'S/N';
+    final String nombreRuta = servicio['nombre'] as String? ?? 'Ruta desconocida';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -109,12 +163,20 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'CEL: 6818794',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                // --- MODIFICADO: Mostramos la PLACA ---
+                'Placa: $placa',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                // --- MODIFICADO: Mostramos el NOMBRE ---
+                nombre,
+                style: TextStyle(fontSize: 14, color: Colors.grey[800]),
               ),
               Text(
-                'Roberto Vasquez Perez',
+                // --- NUEVO: Mostramos la RUTA ---
+                nombreRuta,
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
             ],
@@ -128,8 +190,10 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
       ),
     );
   }
+  // --- FIN MODIFICADO ---
 
   Widget _buildFareSelection(BuildContext context) {
+    // ... (Tu lógica de _buildFareSelection y _buildFareButton no cambia)
     bool hasCorto = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Corto');
     bool hasLargo = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Largo');
 
@@ -196,6 +260,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
     VoidCallback onPressed, {
     required bool isSelected,
   }) {
+    // ...
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
@@ -220,7 +285,6 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
     );
   }
 
-  // --- FUNCIÓN _buildPayButton MODIFICADA ---
   Widget _buildPayButton(BuildContext context) {
     bool hasItems = _pasajesSeleccionados.isNotEmpty;
 
@@ -238,6 +302,36 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
                         pasajes: _pasajesSeleccionados,
                         total: totalAPagar,
                         onConfirm: () async {
+                          // --- NUEVO: PREPARAMOS LOS DATOS ANTES DE PAGAR ---
+                          // 1. Preparamos los pasajes
+                          final List<Map<String, dynamic>> pasajesJSON =
+                              _pasajesSeleccionados
+                                  .map((p) => {
+                                        'nombre': p.nombre,
+                                        'precio': p.precio,
+                                      })
+                                  .toList();
+
+                          // 2. Creamos el JSON COMPLETO para enviar al backend
+                          final Map<String, dynamic> payloadToSend = {
+                            'info_conductor': _conductorData, // <-- ¡LOS DATOS DEL NFC!
+                            'detalle_pago': {
+                              'pasajes': pasajesJSON,
+                              'total_pagado': totalAPagar,
+                            },
+                            'pasajero_id': 'fabricio_id', // (Esto vendrá del login)
+                            'timestamp': DateTime.now().toIso8601String(),
+                          };
+                          
+                          // 3. Imprimimos el JSON para depurar
+                          print("--- ENVIANDO AL BACKEND (Simulación) ---");
+                          print(json.encode(payloadToSend));
+                          // Aquí llamarías a tu UseCase:
+                          // await paymentUseCase.execute(payloadToSend);
+                          // --- FIN NUEVO ---
+
+
+                          // (Inicio de tu simulación de pago)
                           await Future.delayed(
                             const Duration(milliseconds: 500),
                           );
@@ -271,13 +365,39 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
                             AppPaths.paymentStatus,
                             extra: resultStatus,
                           );
+                          // (Fin de tu simulación de pago)
 
-                          // 5. Limpiar la lista si el pago fue exitoso
+
                           if (resultStatus == PaymentStatus.success) {
+                            
+                            try {
+                              final prefs = await SharedPreferences.getInstance();
+                              final List<String> historialJson = prefs.getStringList('historial') ?? [];
+                              final String timestamp = DateTime.now().toIso8601String();
+                              
+                              final List<String> nuevosItemsJson = _pasajesSeleccionados.map((pasaje) {
+                                final Map<String, dynamic> transaccion = {
+                                  'type': 'minibus', // ¡TIPO ESPECÍFICO DE MINIBUS!
+                                  'timestamp': timestamp,
+                                  'nombre': pasaje.nombre,
+                                  'precio': pasaje.precio,
+                                };
+                                return json.encode(transaccion);
+                              }).toList();
+
+                              historialJson.addAll(nuevosItemsJson);
+                              await prefs.setStringList('historial', historialJson);
+                              print("Historial de Minibus guardado!");
+                            } catch (e) {
+                              print("Error al guardar historial: $e");
+                            }
+                            // --- FIN NUEVO ---
+
                             setState(() {
                               _pasajesSeleccionados.clear();
                             });
                           }
+                          // --- FIN MODIFICADO ---
                         },
                       );
                     },
@@ -285,6 +405,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
                 }
               : null,
           style: ElevatedButton.styleFrom(
+            // ... (tu estilo de botón no cambia)
             shape: const CircleBorder(),
             padding: const EdgeInsets.all(24),
             backgroundColor: hasItems
@@ -306,8 +427,10 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
       ],
     );
   }
+  // --- FIN MODIFICADO ---
 
   Widget _buildSummaryCard(BuildContext context) {
+    // ... (Tu _buildSummaryCard y _buildSummaryItem no necesitan cambios)
     Map<String, int> pasajeCounts = {};
     for (var pasaje in _pasajesSeleccionados) {
       pasajeCounts[pasaje.nombre] = (pasajeCounts[pasaje.nombre] ?? 0) + 1;
@@ -400,6 +523,7 @@ class _MinibusPaymentPageState extends State<MinibusPaymentPage> {
     double subtotal,
     VoidCallback onQuitar,
   ) {
+    // ... (Esta función no cambia)
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:sueltito/core/config/app_theme.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart'
 import 'package:sueltito/features/payment/presentation/widgets/payment_confirmation_dialog.dart';
 import 'package:sueltito/features/payment/domain/entities/pasaje.dart';
 
+// --- MODIFICADO: Nombre de clase unificado (del merge) ---
 class TrufiPaymentPage extends StatefulWidget {
   const TrufiPaymentPage({super.key});
 
@@ -14,16 +17,20 @@ class TrufiPaymentPage extends StatefulWidget {
 }
 
 class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
+  // --- NUEVO: Variable para guardar los datos del NFC ---
+  Map<String, dynamic>? _conductorData;
+  // --- FIN NUEVO ---
+
   bool _isPreferencial = false;
   final List<Pasaje> _pasajesSeleccionados = [];
   bool _simulateSuccess = true;
 
-  // Precios de Trufi (con preferencial)
+  // --- MODIFICADO: Precios de Trufi (tomados de tu merge) ---
   static const double _precioZonal = 2.50;
   static const double _precioZonalPref = 2.00;
   static const double _precioLargo = 3.00;
   static const double _precioLargoPref = 2.50;
-  static const double _precioCorto = 2.80;
+  static const double _precioCorto = 2.80; // (Este es el precio "Corto" del Trufi)
   static const double _precioCortoPref = 2.30;
   static const double _precioExtraLargo = 3.30;
   static const double _precioExtraLargoPref = 2.80;
@@ -36,9 +43,29 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
       _isPreferencial ? _precioCortoPref : _precioCorto;
   double get precioActualExtraLargo =>
       _isPreferencial ? _precioExtraLargoPref : _precioExtraLargo;
+  // --- FIN MODIFICADO ---
 
   double get totalAPagar =>
       _pasajesSeleccionados.fold(0.0, (sum, item) => sum + item.precio);
+
+  // --- NUEVO: Lógica para recibir los datos del NFC ---
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    if (_conductorData == null) {
+      final state = GoRouterState.of(context);
+      final extra = state.extra;
+      if (extra != null && extra is Map<String, dynamic>) {
+        setState(() {
+          _conductorData = extra;
+        });
+      } else {
+        print("Error: TrufiPaymentPage se abrió sin datos del conductor.");
+      }
+    }
+  }
+  // --- FIN NUEVO ---
 
   void _addPasaje(String nombre, double precio) {
     setState(() {
@@ -54,6 +81,16 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    // --- NUEVO: Muestra 'cargando' hasta que los datos del NFC lleguen ---
+    if (_conductorData == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    // --- FIN NUEVO ---
+
     return Scaffold(
       appBar: _buildAppBar(context),
       body: Column(
@@ -65,7 +102,9 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildDriverInfoCard(),
+                  // --- MODIFICADO: Le pasamos los datos del conductor ---
+                  _buildDriverInfoCard(_conductorData!),
+                  // --- FIN MODIFICADO ---
                   const SizedBox(height: 24),
                   _buildFareSelection(context),
                   const SizedBox(height: 24),
@@ -91,17 +130,27 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
       ),
       centerTitle: true,
       title: Text(
-        'Bienvenido al Trufi\nFabricio',
+        'Bienvenido al Trufi\nFabricio', // Título actualizado (de tu merge)
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: AppColors.primaryGreen,
-          fontWeight: FontWeight.bold,
-        ),
+              color: AppColors.primaryGreen,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
 
-  Widget _buildDriverInfoCard() {
+  // --- MODIFICADO: Tarjeta de conductor dinámica (fusionada) ---
+  Widget _buildDriverInfoCard(Map<String, dynamic> driverData) {
+    // 1. Extraemos los bloques
+    final propietario = driverData['propietario'] as Map<String, dynamic>? ?? {};
+    final servicio = driverData['servicio'] as Map<String, dynamic>? ?? {};
+
+    // 2. Extraemos los datos (usando el JSON que ya conocemos)
+    final String nombre = propietario['nombre'] as String? ?? 'Conductor no encontrado';
+    final String placa = servicio['identificador'] as String? ?? 'S/N';
+    final String nombreRuta = servicio['nombre'] as String? ?? 'Ruta desconocida';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -114,18 +163,24 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'CEL: 6818794',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                'Placa: $placa', // Dato dinámico
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                nombre, // Dato dinámico
+                style: TextStyle(fontSize: 14, color: Colors.grey[800]),
               ),
               Text(
-                'Roberto Vasquez Perez',
+                nombreRuta, // Dato dinámico
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
             ],
           ),
+          // --- Icono de auto (de tu merge) ---
           const Icon(
-            Icons.directions_car,
+            Icons.directions_car, 
             size: 40,
             color: AppColors.textBlack,
           ),
@@ -133,7 +188,9 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
       ),
     );
   }
+  // --- FIN MODIFICADO ---
 
+  // --- MODIFICADO: Selección de 4 tarifas (de tu merge) ---
   Widget _buildFareSelection(BuildContext context) {
     bool hasZonal = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Zonal');
     bool hasLargo = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Largo');
@@ -222,6 +279,7 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
       ],
     );
   }
+  // --- FIN MODIFICADO ---
 
   Widget _buildFareButton(
     BuildContext context,
@@ -230,6 +288,7 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
     VoidCallback onPressed, {
     required bool isSelected,
   }) {
+    // --- Estilo de botón (de tu merge) ---
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
@@ -254,6 +313,7 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
     );
   }
 
+  // --- MODIFICADO: Botón de pago con lógica de guardado ---
   Widget _buildPayButton(BuildContext context) {
     bool hasItems = _pasajesSeleccionados.isNotEmpty;
 
@@ -270,6 +330,32 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
                         pasajes: _pasajesSeleccionados,
                         total: totalAPagar,
                         onConfirm: () async {
+                          // --- NUEVO: PREPARAMOS LOS DATOS ANTES DE PAGAR ---
+                          final List<Map<String, dynamic>> pasajesJSON =
+                              _pasajesSeleccionados
+                                  .map((p) => {
+                                        'nombre': p.nombre,
+                                        'precio': p.precio,
+                                      })
+                                  .toList();
+
+                          final Map<String, dynamic> payloadToSend = {
+                            'info_conductor': _conductorData, // <-- ¡LOS DATOS DEL NFC!
+                            'detalle_pago': {
+                              'pasajes': pasajesJSON,
+                              'total_pagado': totalAPagar,
+                            },
+                            'pasajero_id': 'fabricio_id', // (Esto vendrá del login)
+                            'timestamp': DateTime.now().toIso8601String(),
+                          };
+                          
+                          print("--- ENVIANDO AL BACKEND (Simulación) ---");
+                          print(json.encode(payloadToSend));
+                          // await paymentUseCase.execute(payloadToSend);
+                          // --- FIN NUEVO ---
+
+
+                          // (Inicio de tu simulación de pago)
                           await Future.delayed(
                             const Duration(milliseconds: 500),
                           );
@@ -293,8 +379,36 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
                             AppPaths.paymentStatus,
                             extra: resultStatus,
                           );
+                          // (Fin de tu simulación de pago)
 
+
+                          // --- NUEVO: GUARDAMOS EN EL HISTORIAL SI EL PAGO FUE EXITOSO ---
                           if (resultStatus == PaymentStatus.success) {
+                            
+                            try {
+                              final prefs = await SharedPreferences.getInstance();
+                              final List<String> historialJson = prefs.getStringList('historial') ?? [];
+                              final String timestamp = DateTime.now().toIso8601String();
+                              
+                              final List<String> nuevosItemsJson = _pasajesSeleccionados.map((pasaje) {
+                                final Map<String, dynamic> transaccion = {
+                                  // ¡¡LA CLAVE ESTÁ AQUÍ!!
+                                  'type': 'trufi', // ¡TIPO ESPECÍFICO DE TRUFI!
+                                  'timestamp': timestamp,
+                                  'nombre': pasaje.nombre,
+                                  'precio': pasaje.precio,
+                                };
+                                return json.encode(transaccion);
+                              }).toList();
+
+                              historialJson.addAll(nuevosItemsJson);
+                              await prefs.setStringList('historial', historialJson);
+                              print("Historial de Trufi guardado!");
+                            } catch (e) {
+                              print("Error al guardar historial: $e");
+                            }
+                            // --- FIN NUEVO ---
+
                             setState(() {
                               _pasajesSeleccionados.clear();
                             });
@@ -306,6 +420,7 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
                 }
               : null,
           style: ElevatedButton.styleFrom(
+            // ... (tu estilo de botón no cambia)
             shape: const CircleBorder(),
             padding: const EdgeInsets.all(24),
             backgroundColor: hasItems
@@ -327,8 +442,11 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
       ],
     );
   }
+  // --- FIN MODIFICADO ---
+
 
   Widget _buildSummaryCard(BuildContext context) {
+    // ... (Tu _buildSummaryCard y _buildSummaryItem no necesitan cambios)
     Map<String, int> pasajeCounts = {};
     for (var pasaje in _pasajesSeleccionados) {
       pasajeCounts[pasaje.nombre] = (pasajeCounts[pasaje.nombre] ?? 0) + 1;
@@ -422,6 +540,7 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
     double subtotal,
     VoidCallback onQuitar,
   ) {
+    // ... (Esta función no cambia)
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(

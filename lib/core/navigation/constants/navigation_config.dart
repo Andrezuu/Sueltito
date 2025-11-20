@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sueltito/features/driver/presentation/pages/driver_home_page.dart';
 import 'package:sueltito/features/history/presentation/pages/history_page.dart';
-import 'package:sueltito/features/passenger/presentation/pages/passenger_home_page.dart';
+import 'package:sueltito/features/payment/presentation/pages/nfc_scan_page.dart';
 import 'package:sueltito/features/settings/presentation/pages/settings_page.dart';
 import 'package:sueltito/core/widgets/app_bottom_navigation.dart';
 
@@ -14,9 +14,9 @@ class NavigationConfig {
         page: HistoryPage(),
       ),
       const BottomNavigationItem(
-        icon: Icons.home,
-        label: 'Home',
-        page: PassengerHomePage(),
+        icon: Icons.nfc,
+        label: 'Inicio',
+        page: NfcScanPage(),
       ),
       const BottomNavigationItem(
         icon: Icons.settings,
@@ -35,7 +35,7 @@ class NavigationConfig {
       ),
       const BottomNavigationItem(
         icon: Icons.home,
-        label: 'Home',
+        label: 'Inicio',
         page: DriverHomeContent(), 
       ),
       const BottomNavigationItem(

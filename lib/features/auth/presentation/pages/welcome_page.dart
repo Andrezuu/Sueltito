@@ -22,7 +22,7 @@ class WelcomePage extends StatelessWidget {
               const Spacer(flex: 3),
               ElevatedButton(
                 onPressed: () {
-              context.push(AppPaths.login);
+              context.go(AppPaths.login);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryYellow,

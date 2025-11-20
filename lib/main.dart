@@ -5,14 +5,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Core
 import 'package:sueltito/core/config/app_theme.dart';
+
 import 'package:sueltito/core/config/global_keys.dart';
 import 'package:sueltito/core/navigation/presentation/app_router.dart';
+// --- FIN DE IMPORTS ---
 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  
   runApp(
     const ProviderScope(
       child: MainApp(),
@@ -32,7 +33,6 @@ class MainApp extends ConsumerWidget {
       title: 'Sueltito',
       scaffoldMessengerKey: kScaffoldMessengerKey,
       theme: getAppTheme(),
-      
       routerConfig: router,
       locale: const Locale('es', 'BO'),
       supportedLocales: const [

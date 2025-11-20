@@ -138,7 +138,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: authState.isLoading
                         ? null
                         : () {
-                            context.push(AppPaths.signUp);
+                            context.go(AppPaths.signUp);
                           },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,

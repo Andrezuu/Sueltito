@@ -13,18 +13,24 @@ class RegisterFormState {
   final String primerApellido;
   final String segundoApellido;
   final String ci;
+  final String complemento;
+  final String expedido;
   final DateTime? fechaNacimiento;
   final String celular;
   final String correo;
+  final List<String> pin;
 
   RegisterFormState({
     this.nombre = '',
     this.primerApellido = '',
     this.segundoApellido = '',
     this.ci = '',
+    this.complemento = '',
+    this.expedido = '',
     this.fechaNacimiento,
     this.celular = '',
     this.correo = '',
+    this.pin = const ['', '', '', ''],
   });
 
   RegisterFormState copyWith({
@@ -32,18 +38,24 @@ class RegisterFormState {
     String? primerApellido,
     String? segundoApellido,
     String? ci,
+    String? complemento,
+    String? expedido,
     DateTime? fechaNacimiento,
     String? celular,
     String? correo,
+    List<String>? pin,
   }) {
     return RegisterFormState(
       nombre: nombre ?? this.nombre,
       primerApellido: primerApellido ?? this.primerApellido,
       segundoApellido: segundoApellido ?? this.segundoApellido,
       ci: ci ?? this.ci,
+      complemento: complemento ?? this.complemento,
+      expedido: expedido ?? this.expedido,
       fechaNacimiento: fechaNacimiento ?? this.fechaNacimiento,
       celular: celular ?? this.celular,
       correo: correo ?? this.correo,
+      pin: pin ?? this.pin,
     );
   }
 
@@ -51,9 +63,11 @@ class RegisterFormState {
     return nombre.isNotEmpty &&
         primerApellido.isNotEmpty &&
         ci.isNotEmpty &&
+        expedido.isNotEmpty &&
         fechaNacimiento != null &&
         celular.isNotEmpty &&
-        correo.isNotEmpty;
+        correo.isNotEmpty &&
+        pin.every((p) => p.isNotEmpty);
   }
 }
 
@@ -80,6 +94,14 @@ class RegisterFormNotifier extends Notifier<RegisterFormState> {
     state = state.copyWith(ci: value);
   }
 
+  void updateComplemento(String value) {
+    state = state.copyWith(complemento: value);
+  }
+
+  void updateExpedido(String value) {
+    state = state.copyWith(expedido: value);
+  }
+
   void updateFechaNacimiento(DateTime value) {
     state = state.copyWith(fechaNacimiento: value);
   }
@@ -90,6 +112,12 @@ class RegisterFormNotifier extends Notifier<RegisterFormState> {
 
   void updateCorreo(String value) {
     state = state.copyWith(correo: value);
+  }
+
+  void updatePin(int index, String value) {
+    final newPin = List<String>.from(state.pin);
+    newPin[index] = value;
+    state = state.copyWith(pin: newPin);
   }
 
   void reset() {
@@ -211,7 +239,6 @@ class RegisterFormNotifier extends Notifier<RegisterFormState> {
       throw Exception('Por favor completa todos los campos requeridos');
     }
 
-    // Obtener info del dispositivo
     final deviceData = await _getDeviceInfo(context);
 
     final request = RegisterRequest(
@@ -220,11 +247,13 @@ class RegisterFormNotifier extends Notifier<RegisterFormState> {
       segundoApellido: state.segundoApellido,
       nroDocumento: state.ci,
       tipoDocumento: 'CI',
+      complemento: state.complemento,
+      expedido: state.expedido,
       fechaNacimiento: state.fechaNacimiento.toString(),
       celular: state.celular,
       correo: state.correo,
-      nroCuenta: state.celular, // TODO: Asignar nroCuenta real
-      // Device info obtenido dinámicamente
+      nroCuenta: state.celular,
+      pin: state.pin.join(),
       numeroBluetooth: deviceData['bluetooth'] ?? '',
       numeroImei: deviceData['imei'] ?? '',
       sistemaOperativo: deviceData['sistemaOperativo'] ?? '',
