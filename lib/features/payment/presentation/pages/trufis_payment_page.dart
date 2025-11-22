@@ -7,8 +7,8 @@ import 'package:sueltito/core/constants/app_paths.dart';
 import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart';
 import 'package:sueltito/features/payment/presentation/widgets/payment_confirmation_dialog.dart';
 import 'package:sueltito/features/payment/domain/entities/pasaje.dart';
+import 'package:sueltito/core/constants/pasaje_constants.dart';
 
-// --- MODIFICADO: Nombre de clase unificado (del merge) ---
 class TrufiPaymentPage extends StatefulWidget {
   const TrufiPaymentPage({super.key});
 
@@ -17,38 +17,22 @@ class TrufiPaymentPage extends StatefulWidget {
 }
 
 class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
-  // --- NUEVO: Variable para guardar los datos del NFC ---
   Map<String, dynamic>? _conductorData;
-  // --- FIN NUEVO ---
+  String? _conductorTipoTransporte;
 
   bool _isPreferencial = false;
   final List<Pasaje> _pasajesSeleccionados = [];
   bool _simulateSuccess = true;
 
-  // --- MODIFICADO: Precios de Trufi (tomados de tu merge) ---
-  static const double _precioZonal = 2.50;
-  static const double _precioZonalPref = 2.00;
-  static const double _precioLargo = 3.00;
-  static const double _precioLargoPref = 2.50;
-  static const double _precioCorto = 2.80; // (Este es el precio "Corto" del Trufi)
-  static const double _precioCortoPref = 2.30;
-  static const double _precioExtraLargo = 3.30;
-  static const double _precioExtraLargoPref = 2.80;
-
-  double get precioActualZonal =>
-      _isPreferencial ? _precioZonalPref : _precioZonal;
-  double get precioActualLargo =>
-      _isPreferencial ? _precioLargoPref : _precioLargo;
-  double get precioActualCorto =>
-      _isPreferencial ? _precioCortoPref : _precioCorto;
-  double get precioActualExtraLargo =>
-      _isPreferencial ? _precioExtraLargoPref : _precioExtraLargo;
-  // --- FIN MODIFICADO ---
+  List<PasajeInfo> get _trufiOptions => PasajeConstants.trufiOptions(preferencial: _isPreferencial);
+  PasajeInfo get precioZonal => _trufiOptions[0];
+  PasajeInfo get precioCorto => _trufiOptions[1];
+  PasajeInfo get precioLargo => _trufiOptions[2];
+  PasajeInfo get precioExtraLargo => _trufiOptions[3];
 
   double get totalAPagar =>
       _pasajesSeleccionados.fold(0.0, (sum, item) => sum + item.precio);
 
-  // --- NUEVO: Lógica para recibir los datos del NFC ---
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -59,6 +43,7 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
       if (extra != null && extra is Map<String, dynamic>) {
         setState(() {
           _conductorData = extra;
+          _conductorTipoTransporte = extra['servicio']?['tipo_transporte']?.toString();
         });
       } else {
         print("Error: TrufiPaymentPage se abrió sin datos del conductor.");
@@ -67,9 +52,9 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
   }
   // --- FIN NUEVO ---
 
-  void _addPasaje(String nombre, double precio) {
+  void _addPasaje(String nombre, double precio, String codigo) {
     setState(() {
-      _pasajesSeleccionados.add(Pasaje(nombre: nombre, precio: precio));
+      _pasajesSeleccionados.add(Pasaje(nombre: nombre, precio: precio, codigo: codigo));
     });
   }
 
@@ -192,12 +177,40 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
 
   // --- MODIFICADO: Selección de 4 tarifas (de tu merge) ---
   Widget _buildFareSelection(BuildContext context) {
-    bool hasZonal = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Zonal');
+  bool hasZonal = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Zonal');
     bool hasLargo = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Largo');
     bool hasCorto = _pasajesSeleccionados.any((p) => p.nombre == 'Tramo Corto');
     bool hasExtraLargo = _pasajesSeleccionados.any(
       (p) => p.nombre == 'Tramo Extra Largo',
     );
+
+    // If this is a Trufi Zonal (tipo_transporte '04') show only Zonal option
+    if (_conductorTipoTransporte == '04') {
+      final zonalInfo = PasajeConstants.PAP_PASAJES['000019']!; // daytime
+      final zonalInfoN = PasajeConstants.PAP_PASAJES['000020']!; // night
+      final selectedPrice = _isPreferencial ? zonalInfoN.tarifa : zonalInfo.tarifa;
+      final bool hasZonalOnly = _pasajesSeleccionados.any((p) => p.codigo == zonalInfo.codigo || p.codigo == zonalInfoN.codigo);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Elige tu tramo:', style: Theme.of(context).textTheme.titleMedium),
+              Row(children: [
+                Text('Tarifa Preferencial?', style: Theme.of(context).textTheme.titleSmall),
+                Switch(value: _isPreferencial, onChanged: (value) { setState(() { _isPreferencial = value; }); }, activeThumbColor: AppColors.primaryGreen)
+              ],),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: _buildFareButton(context, 'Zonal', selectedPrice, () => _addPasaje('Tramo Zonal', selectedPrice, _isPreferencial ? zonalInfoN.codigo : zonalInfo.codigo), isSelected: hasZonalOnly),)
+          ],)
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,18 +248,18 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
               child: _buildFareButton(
                 context,
                 'Zonal',
-                precioActualZonal,
-                () => _addPasaje('Tramo Zonal', precioActualZonal),
+                precioZonal.tarifa,
+                () => _addPasaje('Tramo Zonal', precioZonal.tarifa, precioZonal.codigo),
                 isSelected: hasZonal,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildFareButton(
+                child: _buildFareButton(
                 context,
                 'Largo',
-                precioActualLargo,
-                () => _addPasaje('Tramo Largo', precioActualLargo),
+                precioLargo.tarifa,
+                () => _addPasaje('Tramo Largo', precioLargo.tarifa, precioLargo.codigo),
                 isSelected: hasLargo,
               ),
             ),
@@ -256,21 +269,21 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
         Row(
           children: [
             Expanded(
-              child: _buildFareButton(
+                child: _buildFareButton(
                 context,
                 'Corto',
-                precioActualCorto,
-                () => _addPasaje('Tramo Corto', precioActualCorto),
+                precioCorto.tarifa,
+                () => _addPasaje('Tramo Corto', precioCorto.tarifa, precioCorto.codigo),
                 isSelected: hasCorto,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildFareButton(
+                child: _buildFareButton(
                 context,
                 'Extra Largo',
-                precioActualExtraLargo,
-                () => _addPasaje('Tramo Extra Largo', precioActualExtraLargo),
+                precioExtraLargo.tarifa,
+                () => _addPasaje('Tramo Extra Largo', precioExtraLargo.tarifa, precioExtraLargo.codigo),
                 isSelected: hasExtraLargo,
               ),
             ),
@@ -331,21 +344,32 @@ class _TrufiPaymentPageState extends State<TrufiPaymentPage> {
                         total: totalAPagar,
                         onConfirm: () async {
                           // --- NUEVO: PREPARAMOS LOS DATOS ANTES DE PAGAR ---
-                          final List<Map<String, dynamic>> pasajesJSON =
-                              _pasajesSeleccionados
-                                  .map((p) => {
-                                        'nombre': p.nombre,
-                                        'precio': p.precio,
-                                      })
-                                  .toList();
+              final List<Map<String, dynamic>> pasajesJSON =
+                _pasajesSeleccionados
+                  .map((p) => {
+                    'tipo_pago': p.codigo ?? '',
+                    'nombre': p.nombre,
+                    'precio': p.precio,
+                    })
+                  .toList();
 
                           final Map<String, dynamic> payloadToSend = {
-                            'info_conductor': _conductorData, // <-- ¡LOS DATOS DEL NFC!
-                            'detalle_pago': {
-                              'pasajes': pasajesJSON,
-                              'total_pagado': totalAPagar,
+                            'info_conductor': _conductorData,
+                            'servicio': _conductorData!['servicio'] ?? {},
+                            'tag': _conductorData!['tag'] ?? {},
+                            'usuario': {
+                              'pasajero_id': 'fabricio_id',
+                              'conductor_id': _conductorData!['propietario']?['id'] ?? '',
                             },
-                            'pasajero_id': 'fabricio_id', // (Esto vendrá del login)
+                            'pago': {
+                              'monto_total': totalAPagar,
+                              'tipo_transporte': _conductorTipoTransporte ?? precioZonal.tipoTransporte,
+                              'forma_pago': 'EFECTIVO',
+                              'detalle': pasajesJSON
+                                  .map((p) => {'tipo_pago': p['tipo_pago'], 'monto': p['precio']})
+                                  .toList(),
+                            },
+                            'glosa': 'Pago Trufi',
                             'timestamp': DateTime.now().toIso8601String(),
                           };
                           

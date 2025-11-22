@@ -6,6 +6,7 @@ import 'package:sueltito/core/config/app_theme.dart';
 import 'package:sueltito/features/payment/domain/enums/payment_status_enum.dart';
 import 'package:sueltito/features/payment/presentation/widgets/payment_confirmation_dialog.dart';
 import 'package:sueltito/features/payment/domain/entities/pasaje.dart';
+import 'package:sueltito/core/constants/pasaje_constants.dart';
 
 class TaxiPaymentPage extends StatefulWidget {
   const TaxiPaymentPage({super.key});
@@ -62,7 +63,8 @@ class _TaxiPaymentPageState extends State<TaxiPaymentPage> {
       _pasajesSeleccionados.clear(); // Limpiamos la lista
       if (monto != null && monto > 0) {
         // Si el monto es válido, lo añadimos como el único pasaje
-        _pasajesSeleccionados.add(Pasaje(nombre: 'Pasaje Taxi', precio: monto));
+        final taxiInfo = PasajeConstants.taxiOption();
+        _pasajesSeleccionados.add(Pasaje(nombre: 'Pasaje Taxi', precio: monto, codigo: taxiInfo.codigo));
         _montoError = null;
       } else if (_montoController.text.isNotEmpty) {
         _montoError = "Monto inválido"; // Error si escriben "abc"
@@ -245,17 +247,26 @@ class _TaxiPaymentPageState extends State<TaxiPaymentPage> {
                           // --- NUEVO: Preparar Payload para Backend ---
                           final List<Map<String, dynamic>> pasajesJSON =
                               _pasajesSeleccionados.map((p) => {
+                                    'tipo_pago': p.codigo ?? PasajeConstants.taxiOption().codigo,
                                     'nombre': p.nombre,
                                     'precio': p.precio,
                                   }).toList();
 
                           final Map<String, dynamic> payloadToSend = {
                             'info_conductor': _conductorData,
-                            'detalle_pago': {
-                              'pasajes': pasajesJSON,
-                              'total_pagado': totalAPagar,
+                            'servicio': _conductorData!['servicio'] ?? {},
+                            'tag': _conductorData!['tag'] ?? {},
+                            'usuario': {
+                              'pasajero_id': 'fabricio_id',
+                              'conductor_id': _conductorData!['propietario']?['id'] ?? '',
                             },
-                            'pasajero_id': 'fabricio_id',
+                            'pago': {
+                              'monto_total': totalAPagar,
+                              'tipo_transporte': PasajeConstants.taxiOption().tipoTransporte,
+                              'forma_pago': 'EFECTIVO',
+                              'detalle': pasajesJSON.map((p) => {'tipo_pago': p['tipo_pago'], 'monto': p['precio']}).toList(),
+                            },
+                            'glosa': 'Pago Taxi',
                             'timestamp': DateTime.now().toIso8601String(),
                           };
                           
