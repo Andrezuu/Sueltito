@@ -21,6 +21,28 @@ jobs:
         with:
           channel: stable
 
+      - name: Cache Flutter Pub packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-pub-
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
       - name: Buildear apk
         run: flutter build apk --release
 
@@ -30,7 +52,10 @@ jobs:
       - name: Crear config rclone
         run: |
           mkdir -p ~/.config/rclone
-          echo "${{ secrets.RCLONE_CONFIG_ONEDRIVE }}" > ~/.config/rclone/rclone.conf
+          # Write rclone config safely with a heredoc to preserve JSON tokens/newlines
+          cat > ~/.config/rclone/rclone.conf << 'EOF'
+          ${{ secrets.RCLONE_CONFIG_ONEDRIVE }}
+          EOF
 
       - name: Validate rclone config and upload to OneDrive
         run: |
