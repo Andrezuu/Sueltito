@@ -32,10 +32,24 @@ jobs:
           mkdir -p ~/.config/rclone
           echo "${{ secrets.RCLONE_CONFIG_ONEDRIVE }}" > ~/.config/rclone/rclone.conf
 
-      - name: Upload to OneDrive
+      - name: Validate rclone config and upload to OneDrive
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
           DEST_PATH="sueltito/app-release.apk"
 
-          rclone copy "$APK_PATH" "onedrive:${DEST_PATH}" --progress
+          # Check that the config file was created and is not empty
+          if [ ! -s ~/.config/rclone/rclone.conf ]; then
+            echo "rclone config file is missing or empty" >&2
+            exit 1
+          fi
+
+          # Show rclone version and configured remotes
+          rclone --version
+          rclone listremotes
+
+          # Quick check that the onedrive remote is available; fail early if misconfigured
+          rclone lsd onedrive:
+
+          # Copy the APK; add --progress and --verbose for easier debugging
+          rclone copy "$APK_PATH" "onedrive:${DEST_PATH}" --progress --verbose
 
