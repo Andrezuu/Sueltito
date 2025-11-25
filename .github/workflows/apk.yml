@@ -1,0 +1,40 @@
+name: Build Flutter APK and upload to OneDrive
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Crear archivo .env
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+        run: flutter build apk --release
+
+      - name: Install rclone
+        run: sudo apt-get install -y rclone
+
+      - name: Crear config rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG_ONEDRIVE }}" > ~/.config/rclone/rclone.conf
+
+      - name: Upload to OneDrive
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
+          DEST_PATH="sueltito/app-debug.apk"
+
+          rclone copy "$APK_PATH" "onedrive:${DEST_PATH}" --progress
+
