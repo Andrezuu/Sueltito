@@ -63,11 +63,11 @@ class _NfcScanPageState extends ConsumerState<NfcScanPage>
       final user = ref.read(authProvider).value?.usuario;
       if (user == null) return;
 
-      // Llamamos al UseCase
-      final getHistoryUseCase = ref.read(getPassengerHistoryUseCaseProvider);
+  // Llamamos al UseCase genérico y pasamos el perfil actual del usuario
+  final getHistoryUseCase = ref.read(getHistoryUseCaseProvider);
       
-      // Petición a la API
-      final historial = await getHistoryUseCase.call(user.id);
+  // Petición a la API
+  final historial = await getHistoryUseCase.call(user.id, profile: user.perfilActual);
 
       if (mounted) {
         setState(() {
@@ -288,13 +288,17 @@ class _NfcScanPageState extends ConsumerState<NfcScanPage>
               alignment: Alignment.centerLeft,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Text(
-                  "Bienvenido!",
-                  style: textTheme.headlineSmall?.copyWith(
-                    color: AppColors.primaryGreen,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: Builder(builder: (context) {
+                  final user = ref.watch(authProvider).value?.usuario;
+                  final title = user != null ? 'Bienvenido ${user.nombre}' : 'Bienvenido!';
+                  return Text(
+                    title,
+                    style: textTheme.headlineSmall?.copyWith(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                }),
               ),
             ),
 
